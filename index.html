@@ -1316,20 +1316,22 @@ $("fb").addEventListener("click", ev => {
     .catch(e => { box.innerHTML = `<span class="err">${esc(e.message)}</span>`; });
 });
 
-// ponytail: one search = an answer left on screen for 4 s, counted once per area found; a slow typist who pauses mid-address
-// can count twice. Only the number (and whether it was found) is sent.
-let countKey = "", countTimer = 0;
+// One search = one answer. Found: counted once it has stayed on screen 4 s (again only for a different area).
+// Not found: counted only when the person stops on it (keyboard closed, box cleared, app left), so a half-typed
+// address is not a miss. Only the number, and whether it was found, is sent.
+let countKey = "", countTimer = 0, miss = false;
+const tally = found => { const d = { type: "search", found }; if (FEEDBACK_URL) fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d), keepalive: true }).catch(() => queue(d)); };
 function countSearch(R, txt) {
   clearTimeout(countTimer);
-  if (!R) { countKey = ""; return; }
-  const key = R.paths.length ? R.paths.flatMap(P => P.areas.map(a => a.area)).join("|") : "?" + drainNorm(txt);
-  countTimer = setTimeout(() => {
-    if (key === countKey) return;
-    countKey = key; showInstallBar();
-    const d = { type: "search", found: R.paths.length > 0 };
-    if (FEEDBACK_URL) fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d), keepalive: true }).catch(() => queue(d));
-  }, 4000);
+  if (!R) { endSearch(); countKey = ""; return; }
+  if (!R.paths.length) { miss = drainNorm(txt).replace(/[^a-z]/g, "").length >= 3; return; }
+  miss = false;
+  const key = R.paths.flatMap(P => P.areas.map(a => a.area)).join("|");
+  countTimer = setTimeout(() => { if (key !== countKey) { countKey = key; tally(true); showInstallBar(); } }, 4000);
 }
+function endSearch() { if (miss) { miss = false; tally(false); } }
+$("q").addEventListener("blur", endSearch);
+document.addEventListener("visibilitychange", () => { if (document.hidden) endSearch(); });
 
 /* ---------- ready to type: the cursor is in the box when the app opens (phones show the keyboard on the first tap of the box) ---------- */
 $("q").focus();
