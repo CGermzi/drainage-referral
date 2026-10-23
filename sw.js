@@ -19,7 +19,8 @@ self.addEventListener("fetch", e => {
     e.respondWith((async () => {
       const cache = await caches.open(VERSION);
       try {
-        const res = await Promise.race([fetch(req), new Promise((_, fail) => setTimeout(fail, 3000))]);
+        // "no-cache": ask GitHub whether the page changed, instead of reusing the browser's copy for up to 10 minutes
+        const res = await Promise.race([fetch(req.url, { cache: "no-cache" }), new Promise((_, fail) => setTimeout(fail, 3000))]);
         if (res.ok) cache.put("index.html", res.clone());
         return res;
       } catch {
