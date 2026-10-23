@@ -51,15 +51,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>CapeRefer</title>
-<meta name="description" content="Which hospital a Cape Town metro address is referred to, from the Groote Schuur drainage list.">
+<meta name="description" content="Which hospital a Cape Town metro address is referred to, from the reference drainage maps and lists.">
+<meta name="application-name" content="CapeRefer">
 <meta name="theme-color" content="#0f1312">
+<meta name="color-scheme" content="dark">
+<meta name="format-detection" content="telephone=no">
+<!-- opened from the home screen: full screen with no browser bars (Android reads the manifest, iPhone these tags) -->
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CapeRefer">
+<!-- iPhone launch screens (Android makes its own from the manifest) -->
+<link rel="apple-touch-startup-image" href="splash/1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&display=swap">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <style>
@@ -72,7 +89,9 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box }
-html { -webkit-text-size-adjust: 100% }
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent }
+/* app-like taps: no double-tap zoom on controls, no accidental text selection on buttons */
+button, summary, .ref, .sugg button { touch-action: manipulation; -webkit-user-select: none; user-select: none }
 body { margin: 0; min-height: 100dvh; color: var(--ink); font: 16px/1.5 var(--font);
   background: radial-gradient(900px 420px at 50% -180px, var(--accent-soft), transparent 70%) no-repeat, var(--bg);
   padding: env(safe-area-inset-top, 0px) 16px calc(env(safe-area-inset-bottom, 0px) + 28px) }
@@ -261,7 +280,7 @@ footer a { color: var(--accent); font-weight: 600 }
   <div id="offline" class="offline" role="status" hidden><span class="dot"></span>No signal: lookups still work. Anything you send waits on this phone until the signal is back.</div>
   <div class="card search">
     <label for="q" class="search-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Patient's address or suburb</label>
-    <textarea id="q" autocomplete="off" spellcheck="false" placeholder="e.g. 12 Lansdowne Road, Philippi, 7785"></textarea>
+    <textarea id="q" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="words" enterkeyhint="search" placeholder="e.g. 12 Lansdowne Road, Philippi, 7785"></textarea>
     <div id="sugg" class="sugg" role="listbox" aria-label="Matching areas" hidden></div>
     <div class="row between"><span class="muted">Finds suburbs listed on the drainage map. Full street-address search is coming soon.</span><button id="clear" class="ghost" type="button">Clear</button></div>
   </div>
@@ -1198,6 +1217,8 @@ function renderSugg() {
 }
 $("q").addEventListener("input", () => { render(); renderSugg(); });
 $("q").addEventListener("focus", renderSugg);
+// the keyboard's Search / Return key closes the keyboard so the answer is in view (Shift+Return still adds a line)
+$("q").addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $("q").blur(); } });
 $("q").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("q")) $("sugg").hidden = true; }, 200));
 $("sugg").addEventListener("pointerdown", ev => ev.preventDefault());   // keep the keyboard up
 $("sugg").addEventListener("click", ev => {   // the tapped area replaces the word(s) being typed

@@ -1,15 +1,22 @@
 {
+  "id": "./",
   "name": "CapeRefer: Cape Town Metro Referral Pathway",
   "short_name": "CapeRefer",
   "description": "Which hospital a Cape Town metro address is referred to.",
+  "lang": "en-ZA",
+  "dir": "ltr",
+  "categories": ["medical", "health", "utilities"],
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "launch_handler": { "client_mode": "focus-existing" },
   "background_color": "#0f1312",
   "theme_color": "#0f1312",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }
