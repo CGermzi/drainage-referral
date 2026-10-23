@@ -124,6 +124,7 @@ dialog .row { margin-top: 14px; justify-content: flex-end }
 .err { color: var(--err) }
 footer { color: var(--muted); font-size: .82rem; display: flex; flex-direction: column; gap: 6px; padding-top: 6px }
 footer p { margin: 0 }
+footer a { color: var(--accent) }
 [hidden] { display: none !important }
 </style>
 </head>
@@ -164,9 +165,8 @@ footer p { margin: 0 }
   </section>
   <div class="row"><button id="install" class="primary" type="button">Add to home screen</button><button id="share" type="button">Share this app</button></div>
   <footer>
-    <p>Addresses you type stay on this device. The app counts how many searches are done each day (only the number). Feedback you choose to send includes the area and pathway shown, never the street, house number or patient's name. "Look up on map" sends the typed address (no name) to OpenStreetMap.</p>
-    <p>Areas not on the list: ask for the suburb, or the clinic or day hospital the patient normally attends.</p>
-  </footer>
+    <p>Pathways are given according to the known drainage areas. We do not take responsibility for incorrect details: help us improve by flagging mistakes.</p>
+    <p>Have more detailed drainage area data? Please send it in a <a href="#devNote" data-open="devNote">note to the developer</a>.</p>  </footer>
 </main>
 <div id="installBar" class="bar" hidden><span>Add this app to your home screen: one tap to open next time.</span><button id="barAdd" class="primary" type="button">Add</button><button id="barX" type="button" aria-label="Not now">✕</button></div>
 <dialog id="howTo" aria-labelledby="howToTitle"><h2 id="howToTitle">Add to home screen</h2><div id="howToBody"></div>
@@ -1078,6 +1078,12 @@ document.addEventListener("submit", async ev => {
   try { await send(data); f.reset(); fillNames(); msg.textContent = f.dataset.thanks; }
   catch (e) { msg.className = "msg err"; msg.textContent = e.message; }   // the form keeps what was typed
   btn.disabled = false;
+});
+
+// footer link: open the note form, not just jump to it
+document.querySelector("[data-open]").addEventListener("click", ev => {
+  ev.preventDefault(); const d = $(ev.target.dataset.open); d.open = true;
+  d.scrollIntoView({ behavior: "smooth", block: "start" }); d.querySelector("textarea").focus({ preventScroll: true });
 });
 
 // "Was this right?" under each answer; redrawn only when the answer changes, so a half-written flag survives typing
