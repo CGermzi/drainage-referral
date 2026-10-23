@@ -201,7 +201,9 @@ dialog::backdrop { background: rgb(10 14 12 / .5); backdrop-filter: blur(2px) }
 .quick { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--accent-soft) }
 .ref { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--raised); color: var(--ink); text-decoration: none; font-weight: 600 }
 .ref:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)) }
-.ref::after { content: "↗"; margin-left: auto; color: var(--muted); font-weight: 400 }
+.ref::after { content: ""; margin-left: auto; margin-right: 4px; width: 8px; height: 8px; flex: none; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg) }
+dialog.full { width: min(900px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0 auto; border-radius: 0 }
+#viewerBody img { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); background: #fff }
 .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
 .choice { position: relative; flex-direction: column; gap: 8px; padding: 20px 10px 16px; border-radius: 16px; font-size: 1rem; background: var(--raised) }
 .choice svg { width: 34px; height: 34px; color: var(--accent) }
@@ -298,10 +300,14 @@ footer a { color: var(--accent); font-weight: 600 }
       <span class="muted">This app is only as good as its data. Please send us anything more detailed or more recent: a map, a list, or a photo of one. Leave your phone or email and we'll collect it from you.</span>
       <button class="primary" type="button" id="refSend">Send us newer data</button></div>
     <p class="muted">The pathways in this app were made from these references:</p>
-    <a class="ref" href="reference/drainage-areas.pdf" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span><span>Drainage areas list<small>PDF · 3 pages · residential area and hospital</small></span></a>
-    <a class="ref" href="reference/drainage-poster.jpg" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></span><span>Groote Schuur / Mitchells Plain poster<small>Photo of the wall list</small></span></a>
+    <a class="ref" href="reference/drainage-areas.pdf" data-view="list"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span><span>Drainage areas list<small>3 pages · residential area and hospital</small></span></a>
+    <a class="ref" href="reference/drainage-poster.jpg" data-view="poster"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></span><span>Groote Schuur / Mitchells Plain poster<small>Photo of the wall list</small></span></a>
     <p class="muted">List last updated 23 Oct 2026.</p>
   </div>
+</dialog>
+<dialog id="viewer" class="full" aria-labelledby="viewerTitle">
+  <div class="dlg-head"><button class="linkish" type="button" id="viewerBack">‹ Back</button><h2 id="viewerTitle"></h2><button class="ghost icon-btn" type="button" data-close aria-label="Close">✕</button></div>
+  <div id="viewerBody" class="dlg-body"></div>
 </dialog>
 <script>
 /* drainage:start */
@@ -1392,6 +1398,18 @@ document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", ev 
 
 /* ---------- reference data: what the list was made from, and a request for newer maps ---------- */
 $("refBtn").addEventListener("click", () => $("refs").showModal());
+// the references open inside the app as pictures: PDFs download on Android, and a new tab would leave a home-screen app
+const REFS = {
+  list: { title: "Drainage areas list", pages: [1, 2, 3].map(n => [`reference/drainage-areas-${n}.jpg`, `Drainage areas list, page ${n} of 3`]),
+    extra: `<a href="reference/drainage-areas.pdf" download>Download the original PDF</a>` },
+  poster: { title: "Wall poster", pages: [["reference/drainage-poster.jpg", "Groote Schuur and Mitchells Plain drainage poster"]], extra: "" } };
+document.querySelectorAll("[data-view]").forEach(a => a.addEventListener("click", ev => {
+  ev.preventDefault(); const r = REFS[a.dataset.view];
+  $("viewerTitle").textContent = r.title;
+  $("viewerBody").innerHTML = `<p class="muted">Pinch or zoom in to read.</p>` + r.pages.map(([src, alt]) => `<img src="${src}" alt="${alt}" loading="lazy">`).join("") + (r.extra ? `<p class="muted">${r.extra}</p>` : "");
+  $("refs").close(); $("viewer").showModal(); $("viewer").scrollTop = 0;
+}));
+$("viewerBack").addEventListener("click", () => { $("viewer").close(); $("refs").showModal(); });
 $("refSend").addEventListener("click", () => {
   $("refs").close();
   const d = $("devNote"), t = d.querySelector("textarea"); d.open = true;
