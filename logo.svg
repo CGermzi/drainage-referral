@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#113b31"/><stop offset="1" stop-color="#091c17"/></linearGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c5444"/><stop offset="1" stop-color="#1c5444" stop-opacity="0"/></linearGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9f6de"/><stop offset="1" stop-color="#47d5a3"/></linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8fe6c4"/><stop offset="1" stop-color="#52d6a7"/></linearGradient>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000" flood-opacity=".35"/></filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Table Mountain, Devil's Peak and Lion's Head -->
+  <path d="M10 273 C40 258 60 244 72 232 C82 226 92 224 98 218 L112 199 L166 196 L345 191 L391 191 L396 206 L408 211 L425 232 L437 218 L502 273 Z" fill="url(#hill)"/>
+  <path d="M10 273 C40 258 60 244 72 232 C82 226 92 224 98 218 L112 199 L166 196 M345 191 L391 191 L396 206 L408 211 L425 232 L437 218 L502 273" fill="none" stroke="#2f8a6c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- the route -->
+  <path d="M156 337 C205 342 235 372 285 376 C330 379 335 350 316 335 C296 318 300 296 330 293 L368 291" fill="none" stroke="url(#road)" stroke-width="20" stroke-linecap="round" filter="url(#lift)"/>
+  <circle cx="126" cy="335" r="30" fill="url(#mint)" filter="url(#lift)"/>
+  <circle cx="395" cy="290" r="28" fill="url(#mint)" filter="url(#lift)"/>
+  <!-- the pin -->
+  <path d="M255 317 L186 222 A85 85 0 1 1 324 222 Z" fill="url(#mint)" stroke="url(#mint)" stroke-width="6" stroke-linejoin="round" filter="url(#lift)"/>
+  <circle cx="255" cy="176" r="41" fill="#0e3129"/>
+</svg>

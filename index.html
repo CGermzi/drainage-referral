@@ -1,9 +1,9 @@
 <!doctype html>
 <!--
-  REFERRAL PATHWAY (Cape Town metro drainage areas): a standalone web page. No password, no server code, no Claude needed.
+  CAPEREFER, the Cape Town metro referral pathway: a standalone web page. No password, no server code, no Claude needed.
   The folder holds these files (and a reference/ folder with the drainage list PDF and poster photo
   shown under "Made from reference drainage maps & lists"); keep them together:
-    index.html (this page), manifest.webmanifest, icon-192.png, icon-512.png, apple-touch-icon.png
+    index.html (this page), sw.js (keeps it working without signal), logo.svg, manifest.webmanifest, icon-192.png, icon-512.png, apple-touch-icon.png
     (those four are only for "Add to home screen": the page works without them, but the button and icon need them),
     apps-script.gs: the Google Sheet that collects feedback, new areas, notes and daily search counts.
       Its first lines say how to set it up once; then paste its URL at  const FEEDBACK_URL = ""  in this file.
@@ -50,32 +50,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Referral Pathway</title>
+<title>CapeRefer</title>
 <meta name="description" content="Which hospital a Cape Town metro address is referred to, from the Groote Schuur drainage list.">
-<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1311" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0f1312">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Referral">
+<meta name="apple-mobile-web-app-title" content="CapeRefer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&display=swap">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f5c'/%3E%3Cpath d='M16 28L9.07 16A8 8 0 1 1 22.93 16Z' fill='%23fff'/%3E%3Ccircle cx='16' cy='12' r='3.4' fill='%231f6f5c'/%3E%3C/svg%3E">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png" sizes="192x192">
 <style>
 :root {
-  --bg: #f5f3ee; --surface: #ffffff; --raised: #faf9f6; --ink: #15201c; --muted: #5f6b66; --line: #e4e1d9;
-  --accent: #17604f; --on-accent: #ffffff; --accent-soft: #e4eeea; --warn: #8a5a00; --warn-soft: #fbf1db; --err: #a3262a;
-  --shadow: 0 1px 2px rgb(20 30 26 / .05), 0 12px 32px -14px rgb(20 30 26 / .16);
+  --bg: #0f1312; --surface: #161b19; --raised: #1b211f; --ink: #e8ece9; --muted: #9aa6a0; --line: #28302d;
+  --accent: #7cd6b4; --on-accent: #0c1a15; --accent-soft: #15302a; --warn: #e8b85c; --warn-soft: #2e2510; --err: #ff8a8d;
+  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 14px 34px -16px rgb(0 0 0 / .7);
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
-  color-scheme: light;
+  --display: "Outfit", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0e1311; --surface: #161c1a; --raised: #1b2220; --ink: #e7ece9; --muted: #98a59f; --line: #27302c;
-  --accent: #7ccfb5; --on-accent: #0e1311; --accent-soft: #16302a; --warn: #e8b85c; --warn-soft: #2e2510; --err: #ff8a8d;
-  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 14px 34px -16px rgb(0 0 0 / .7); color-scheme: dark } }
-:root[data-theme="dark"] {
-  --bg: #0e1311; --surface: #161c1a; --raised: #1b2220; --ink: #e7ece9; --muted: #98a59f; --line: #27302c;
-  --accent: #7ccfb5; --on-accent: #0e1311; --accent-soft: #16302a; --warn: #e8b85c; --warn-soft: #2e2510; --err: #ff8a8d;
-  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 14px 34px -16px rgb(0 0 0 / .7); color-scheme: dark }
 * { box-sizing: border-box }
 html { -webkit-text-size-adjust: 100% }
 body { margin: 0; min-height: 100dvh; color: var(--ink); font: 16px/1.5 var(--font);
@@ -85,17 +80,17 @@ main { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; 
 svg { flex: none }
 
 /* header */
-.top { display: flex; align-items: center; gap: 14px; padding: 2px 2px 4px }
-.mark { width: 50px; height: 50px; border-radius: 15px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; flex: none;
-  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--accent) 80%, transparent) }
-.mark svg { width: 27px; height: 27px }
-.mark.sm { width: 38px; height: 38px; border-radius: 11px; box-shadow: none } .mark.sm svg { width: 20px; height: 20px }
-.top h1 { margin: 0; font: 600 1.7rem/1.1 var(--serif); letter-spacing: -.01em; text-wrap: balance }
-.top p { margin: 3px 0 0; color: var(--muted); font-size: .93rem }
+.top { display: flex; align-items: center; gap: 16px; padding: 2px 2px 4px }
+.logo { width: 64px; height: 64px; border-radius: 17px; flex: none; overflow: hidden; display: block; box-shadow: 0 10px 24px -10px rgb(0 0 0 / .8), 0 0 0 1px rgb(124 214 180 / .12) }
+.logo.sm { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 0 0 1px rgb(124 214 180 / .12) }
+.top h1 { margin: 0; font: 600 2.3rem/1 var(--display); letter-spacing: -.02em; color: var(--accent) }
+.top p { margin: 5px 0 0; color: color-mix(in srgb, var(--accent) 70%, var(--ink)); font-size: .95rem; letter-spacing: .01em }
 button.pill { margin-top: 8px; gap: 6px; padding: 3px 11px 3px 9px; font: 500 .78rem var(--font); color: var(--muted);
   background: color-mix(in srgb, var(--surface) 70%, transparent); text-align: left }
 button.pill:hover { color: var(--accent) }
 button.pill svg { width: 14px; height: 14px; color: var(--accent) }
+.offline { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; font-size: .88rem; line-height: 1.35; background: var(--warn-soft); color: var(--ink) }
+.offline .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: none }
 
 /* cards and text */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; box-shadow: var(--shadow) }
@@ -141,9 +136,9 @@ button svg { width: 16px; height: 16px }
 .answer { position: relative; overflow: hidden; gap: 6px; border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); background: linear-gradient(180deg, var(--accent-soft), var(--surface) 80%) }
 .answer::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent) }
 .route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px }
-.route .hop { font: 600 1.15rem/1.25 var(--serif); color: var(--ink) }
+.route .hop { font: 600 1.15rem/1.25 var(--display); color: var(--ink) }
 .route .arr { color: var(--muted); font-size: 1.5rem; line-height: 1 }
-.big { font: 600 1.6rem/1.18 var(--serif); letter-spacing: -.01em; color: var(--accent); text-wrap: balance; margin-bottom: 2px }
+.big { font: 600 1.6rem/1.18 var(--display); letter-spacing: -.01em; color: var(--accent); text-wrap: balance; margin-bottom: 2px }
 .answer.ask { border-color: color-mix(in srgb, var(--warn) 30%, var(--line)); background: linear-gradient(180deg, var(--warn-soft), var(--surface) 80%) }
 .answer.ask::before { background: var(--warn) }
 .answer.ask .big, .answer.none .big { color: var(--ink) }
@@ -191,7 +186,7 @@ dialog::backdrop { background: rgb(10 14 12 / .5); backdrop-filter: blur(2px) }
 @keyframes rise { from { transform: translateY(16px); opacity: 0 } }
 @media (max-width: 560px) { dialog { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 22px 22px 0 0; max-height: 92dvh } }
 .dlg-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 18px 10px; background: var(--surface) }
-.dlg-head h2 { margin: 0; font: 600 1.25rem var(--serif) }
+.dlg-head h2 { margin: 0; font: 600 1.25rem var(--display) }
 .icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 1rem }
 .dlg-body { padding: 2px 18px 18px; display: flex; flex-direction: column; gap: 14px }
 .dlg-body p { margin: 0 }
@@ -239,15 +234,31 @@ footer a { color: var(--accent); font-weight: 600 }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="logo" viewBox="0 0 512 512"><defs>
+    <linearGradient id="lg-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#113b31"/><stop offset="1" stop-color="#091c17"/></linearGradient>
+    <linearGradient id="lg-hill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c5444"/><stop offset="1" stop-color="#1c5444" stop-opacity="0"/></linearGradient>
+    <linearGradient id="lg-mint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9f6de"/><stop offset="1" stop-color="#47d5a3"/></linearGradient>
+    <linearGradient id="lg-road" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8fe6c4"/><stop offset="1" stop-color="#52d6a7"/></linearGradient>
+    <filter id="lg-lift" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000" flood-opacity=".35"/></filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#lg-bg)"/>
+  <path d="M10 273 C40 258 60 244 72 232 C82 226 92 224 98 218 L112 199 L166 196 L345 191 L391 191 L396 206 L408 211 L425 232 L437 218 L502 273 Z" fill="url(#lg-hill)"/>
+  <path d="M10 273 C40 258 60 244 72 232 C82 226 92 224 98 218 L112 199 L166 196 M345 191 L391 191 L396 206 L408 211 L425 232 L437 218 L502 273" fill="none" stroke="#2f8a6c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M156 337 C205 342 235 372 285 376 C330 379 335 350 316 335 C296 318 300 296 330 293 L368 291" fill="none" stroke="url(#lg-road)" stroke-width="20" stroke-linecap="round" filter="url(#lg-lift)"/>
+  <circle cx="126" cy="335" r="30" fill="url(#lg-mint)" filter="url(#lg-lift)"/>
+  <circle cx="395" cy="290" r="28" fill="url(#lg-mint)" filter="url(#lg-lift)"/>
+  <path d="M255 317 L186 222 A85 85 0 1 1 324 222 Z" fill="url(#lg-mint)" stroke="url(#lg-mint)" stroke-width="6" stroke-linejoin="round" filter="url(#lg-lift)"/>
+  <circle cx="255" cy="176" r="41" fill="#0e3129"/></symbol></svg>
 <main>
   <header class="top">
-    <div class="mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="currentColor" fill-rule="evenodd" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z M16 8.6a3.4 3.4 0 1 0 0 6.8a3.4 3.4 0 1 0 0-6.8Z"/></svg></div>
+    <svg class="logo" viewBox="0 0 512 512" aria-hidden="true"><use href="#logo"/></svg>
     <div>
-      <h1>Referral pathway</h1>
-      <p>Cape Town metro drainage areas</p>
+      <h1>CapeRefer</h1>
+      <p>Cape Town Metro Referral Pathway</p>
       <button type="button" class="pill" id="refBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>Made from reference drainage maps &amp; lists</button>
     </div>
   </header>
+  <div id="offline" class="offline" role="status" hidden><span class="dot"></span>No signal: lookups still work. Anything you send waits on this phone until the signal is back.</div>
   <div class="card search">
     <label for="q" class="search-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Patient's address or suburb</label>
     <textarea id="q" autocomplete="off" spellcheck="false" placeholder="e.g. 12 Lansdowne Road, Philippi, 7785"></textarea>
@@ -278,7 +289,7 @@ footer a { color: var(--accent); font-weight: 600 }
       </form></details>
   </section>
   <section class="card promo">
-    <div class="mark sm" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="currentColor" fill-rule="evenodd" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z M16 8.6a3.4 3.4 0 1 0 0 6.8a3.4 3.4 0 1 0 0-6.8Z"/></svg></div>
+    <svg class="logo sm" viewBox="0 0 512 512" aria-hidden="true"><use href="#logo"/></svg>
     <div class="txt"><b id="promoTitle">Keep it one tap away</b><span class="muted" id="promoText">Add the app to your home screen, or share it with a colleague.</span></div>
     <div class="row"><button id="install" class="primary" type="button">Add to home screen</button><button id="share" type="button">Share this app</button></div>
   </section>
@@ -287,7 +298,7 @@ footer a { color: var(--accent); font-weight: 600 }
     <p>Have more detailed drainage area data? Please send it in a <a href="#devNote" data-open="devNote">note to the developer</a>.</p>
   </footer>
 </main>
-<div id="installBar" class="bar" hidden><div class="mark sm" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="currentColor" fill-rule="evenodd" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z M16 8.6a3.4 3.4 0 1 0 0 6.8a3.4 3.4 0 1 0 0-6.8Z"/></svg></div><span>Add to your home screen: one tap to open next time.</span><button id="barAdd" class="primary" type="button">Add</button><button id="barX" class="ghost icon-btn" type="button" aria-label="Not now">✕</button></div>
+<div id="installBar" class="bar" hidden><svg class="logo sm" viewBox="0 0 512 512" aria-hidden="true"><use href="#logo"/></svg><span>Add to your home screen: one tap to open next time.</span><button id="barAdd" class="primary" type="button">Add</button><button id="barX" class="ghost icon-btn" type="button" aria-label="Not now">✕</button></div>
 <dialog id="howTo" aria-labelledby="howToTitle">
   <div class="dlg-head"><h2 id="howToTitle">Add to home screen</h2><button class="ghost icon-btn" type="button" data-close aria-label="Close">✕</button></div>
   <div id="howToBody" class="dlg-body"></div>
@@ -1208,8 +1219,23 @@ async function send(data) {
   if (!FEEDBACK_URL) throw new Error("Feedback isn't switched on yet.");
   let r;
   try { r = await fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(data) }); }   // a plain-text body: no CORS preflight
-  catch { throw new Error("Couldn't send. Check the internet connection and try again."); }
+  catch { queue(data); return false; }   // no signal: kept on this phone, sent when the signal is back
   if (!r.ok || !(await r.json().catch(() => ({}))).ok) throw new Error("Couldn't save it. Please try again later.");
+  return true;
+}
+const QUEUED = "No signal right now: it's saved on this phone and will be sent by itself when the signal is back.";
+// the outbox: what could not be sent yet, on this phone only, sent again when the signal returns
+// ponytail: a search counted offline lands on the day it is sent, not the day it was made
+const outbox = () => { try { return JSON.parse(localStorage.getItem("outbox") || "[]"); } catch { return []; } };
+const setOutbox = l => { try { localStorage.setItem("outbox", JSON.stringify(l.slice(-200))); } catch { } };
+const queue = d => setOutbox([...outbox(), d]);
+let flushing = false;
+async function flush() {
+  const list = outbox(); if (flushing || !FEEDBACK_URL || !list.length) return;
+  flushing = true; setOutbox([]);
+  const left = [];
+  for (const d of list) { try { await fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d) }); } catch { left.push(d); } }
+  setOutbox([...left, ...outbox()]); flushing = false;
 }
 const PATH_OPTS = Object.keys(PATH_NAME).filter(pathSet).map(c => [c, PATH_NAME[c]]).map(([c, n]) => `<option value="${c}: ${esc(n)}">${esc(n)}</option>`).join("");
 document.querySelectorAll("select[name=path]").forEach(s => s.insertAdjacentHTML("beforeend", PATH_OPTS + `<option>Not sure</option>`));
@@ -1221,7 +1247,7 @@ document.addEventListener("submit", async ev => {
   const msg = f.querySelector(".msg"), btn = f.querySelector("button"), data = { type: f.dataset.type, ...Object.fromEntries(new FormData(f)) };
   if (data.from) store("name", data.from);
   btn.disabled = true; msg.className = "msg muted"; msg.textContent = "Sending…";
-  try { await send(data); f.reset(); fillNames(); msg.textContent = f.dataset.thanks; }
+  try { const sent = await send(data); f.reset(); fillNames(); msg.textContent = sent ? f.dataset.thanks : QUEUED; }
   catch (e) { msg.className = "msg err"; msg.textContent = e.message; }   // the form keeps what was typed
   btn.disabled = false;
 });
@@ -1265,6 +1291,7 @@ $("fb").addEventListener("click", ev => {
   }
   box.innerHTML = `<span role="status">Thank you!</span>`;   // "correct": one tap, nothing else to fill in
   send({ type: "feedback", verdict: "correct", areas: FB.areas, pathway: FB.pathway, from: store("name") })
+    .then(sent => { if (!sent) box.innerHTML = `<span role="status">Thank you! ${QUEUED}</span>`; })
     .catch(e => { box.innerHTML = `<span class="err">${esc(e.message)}</span>`; });
 });
 
@@ -1278,7 +1305,8 @@ function countSearch(R, txt) {
   countTimer = setTimeout(() => {
     if (key === countKey) return;
     countKey = key; showInstallBar();
-    if (FEEDBACK_URL) fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify({ type: "search", found: R.paths.length > 0 }), keepalive: true }).catch(() => {});
+    const d = { type: "search", found: R.paths.length > 0 };
+    if (FEEDBACK_URL) fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d), keepalive: true }).catch(() => queue(d));
   }, 4000);
 }
 
@@ -1302,14 +1330,14 @@ let installEv = null;
 // drawings of each phone screen, with a pulsing ring on the button to tap (not screenshots: they follow the page's light/dark colours)
 const svg = (h, inner) => `<svg class="mock" viewBox="0 0 300 ${h}" aria-hidden="true">${inner}</svg>`;
 const tap = (x, y, r = 17) => `<circle class="pulse" cx="${x}" cy="${y}" r="${r}"/><circle class="ring" cx="${x}" cy="${y}" r="${r}"/>`;
-const APP = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s / 32})"><rect class="acc" width="32" height="32" rx="7.5"/><path class="onacc" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z"/><circle class="acc" cx="16" cy="12" r="3.4"/></g>`;
+const APP = (x, y, s) => `<image href="icon-192.png" x="${x}" y="${y}" width="${s}" height="${s}" style="clip-path: inset(0 round ${s * .23}px)"/>`;   // the real app icon
 const lines = (x, y, ws) => ws.map((w, i) => `<rect class="ln" x="${x}" y="${y + i * 14}" width="${w}" height="6" rx="3"/>`).join("");
 function guide(os) {
   const host = esc(location.host || "cgermzi.github.io");
   const home = svg(150, `<rect class="bg" width="300" height="150"/>`
     + [36, 104, 172, 240].flatMap(x => [18, 82].map(y => x === 104 && y === 82 ? "" : `<rect class="ln" x="${x}" y="${y}" width="40" height="40" rx="10"/><rect class="ln" x="${x + 8}" y="${y + 47}" width="24" height="5" rx="2.5"/>`)).join("")
-    + `<circle class="pulse" cx="124" cy="102" r="26"/>` + APP(104, 82, 40) + `<rect class="ring" x="98" y="76" width="52" height="52" rx="15"/><text class="t" x="124" y="143" text-anchor="middle">Referral</text>`);
-  const done = [`Done. Tap the green pin icon on your home screen: the app opens ready to type.`, home];
+    + `<circle class="pulse" cx="124" cy="102" r="26"/>` + APP(104, 82, 40) + `<rect class="ring" x="98" y="76" width="52" height="52" rx="15"/><text class="t" x="124" y="143" text-anchor="middle">CapeRefer</text>`);
+  const done = [`Done. Tap the CapeRefer icon on your home screen: the app opens ready to type.`, home];
   if (os === "ios") return { title: "On iPhone or iPad",
     warn: inApp ? `Opened inside WhatsApp or another app? Tap <b>⋯</b> or the compass icon and choose <b>Open in Safari</b> first.` : "",
     steps: [
@@ -1320,7 +1348,7 @@ function guide(os) {
           + `<g transform="translate(138 125)"><path class="ic hi" d="M12 3v12M8 7l4-4 4 4M7 11H5v10h14V11h-2"/></g>` + tap(150, 137, 18))],
       [`Scroll down the list and tap <b>Add to Home Screen</b>.<span class="muted">Can't see it? Scroll to the very bottom, tap <b>Edit Actions</b> and add it.</span>`,
         svg(172, `<rect class="bg" width="300" height="172"/><rect class="scr" x="10" y="12" width="280" height="170" rx="16"/>` + APP(26, 24, 30)
-          + `<text class="t" x="66" y="37">Referral pathway</text><text class="tm" x="66" y="51">${host}</text><rect class="ln" x="24" y="64" width="252" height="1"/>`
+          + `<text class="t" x="66" y="37">CapeRefer</text><text class="tm" x="66" y="51">${host}</text><rect class="ln" x="24" y="64" width="252" height="1"/>`
           + `<rect class="bg" x="22" y="74" width="256" height="90" rx="10"/><rect class="ln" x="34" y="104" width="244" height="1"/><rect class="ln" x="34" y="134" width="244" height="1"/>`
           + `<text class="t" x="36" y="93">Copy</text><text class="t" x="36" y="123">Add Bookmark</text><text class="ta" x="36" y="153">Add to Home Screen</text>`
           + `<rect class="ic" x="252" y="83" width="10" height="11" rx="2"/><path class="ic" d="M256 80h9v10M253 112h11v14l-5.5-4-5.5 4z"/>`
@@ -1330,7 +1358,7 @@ function guide(os) {
         svg(150, `<rect class="scr" width="300" height="150"/><text class="ta" x="18" y="30" style="font-weight:500">Cancel</text>`
           + `<text class="t" x="150" y="30" text-anchor="middle">Add to Home Screen</text><text class="ta" x="282" y="30" text-anchor="end">Add</text>` + tap(270, 26, 16)
           + `<rect class="ln" y="46" width="300" height="1"/><rect class="bg" x="18" y="62" width="264" height="70" rx="12"/>` + APP(30, 73, 48)
-          + `<text class="t" x="92" y="92">Referral</text><rect class="ln" x="92" y="100" width="176" height="1"/><text class="tm" x="92" y="117">${host}</text>`)],
+          + `<text class="t" x="92" y="92">CapeRefer</text><rect class="ln" x="92" y="100" width="176" height="1"/><text class="tm" x="92" y="117">${host}</text>`)],
       done],
     tips: [`<b>Chrome on iPhone?</b> The Share button ${SHARE} is at the top right, next to the address. Then follow steps 2 to 4.`] };
   if (os === "android") return { title: "On Android",
@@ -1351,7 +1379,7 @@ function guide(os) {
           + `<text class="ta" x="152" y="178">Add to Home screen</text><rect class="ring" x="122" y="160" width="164" height="28" rx="8"/>`)],
       [`Tap <b>Install</b>.<span class="muted">If it asks, choose <b>Install</b> rather than "Create shortcut".</span>`,
         svg(170, `<rect class="scr" width="300" height="170"/><rect class="dim" width="300" height="170"/><rect class="box" x="28" y="18" width="244" height="134" rx="18"/>`
-          + `<text class="t" x="48" y="46" style="font-size:14px">Install app</text>` + APP(48, 60, 36) + `<text class="t" x="96" y="76">Referral</text><text class="tm" x="96" y="92">${host}</text>`
+          + `<text class="t" x="48" y="46" style="font-size:14px">Install app</text>` + APP(48, 60, 36) + `<text class="t" x="96" y="76">CapeRefer</text><text class="tm" x="96" y="92">${host}</text>`
           + `<text class="ta" x="168" y="135" text-anchor="end">Cancel</text><circle class="pulse" cx="219" cy="130" r="24"/>`
           + `<rect class="acc" x="184" y="116" width="70" height="28" rx="14"/><text class="to" x="219" y="134" text-anchor="middle">Install</text><rect class="ring" x="179" y="111" width="80" height="38" rx="19"/>`)],
       done],
@@ -1425,8 +1453,13 @@ const link = () => location.href.split(/[?#]/)[0];
 async function copyLink(btn) { try { await navigator.clipboard.writeText(link()); btn.textContent = "Link copied"; } catch { prompt("Copy this link:", link()); } }
 $("copyLink").addEventListener("click", ev => copyLink(ev.target));
 $("share").addEventListener("click", ev => navigator.share
-  ? navigator.share({ title: "Referral pathway", text: "Which hospital to refer to, from the patient's address:", url: link() }).catch(() => {})
+  ? navigator.share({ title: "CapeRefer", text: "Which hospital to refer to, from the patient's address:", url: link() }).catch(() => {})
   : copyLink(ev.target));
+
+/* ---------- without signal: sw.js keeps a copy of the app on the phone; the notice says lookups still work ---------- */
+if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
+const signal = () => { $("offline").hidden = navigator.onLine; if (navigator.onLine) flush(); };
+addEventListener("online", signal); addEventListener("offline", signal); signal();
 </script>
 </body>
 </html>
