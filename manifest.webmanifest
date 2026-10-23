@@ -1,7 +1,7 @@
 {
-  "name": "Eye Referral Pathway",
+  "name": "Referral Pathway",
   "short_name": "Referral",
-  "description": "Which eye clinic a Western Cape address is referred to.",
+  "description": "Which hospital a Cape Town metro address is referred to.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

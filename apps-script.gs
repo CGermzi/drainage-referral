@@ -1,15 +1,15 @@
 /*
-  EYE REFERRAL FEEDBACK: receives feedback, new areas, notes to the developer and daily search counts
+  REFERRAL PATHWAY FEEDBACK: receives feedback, new areas, notes to the developer and daily search counts
   from the web page, and writes them into a Google Sheet in your own Google account.
 
   ONE-TIME SETUP (about 5 minutes)
-    1. Open https://sheets.new (a new Google Sheet) and name it, e.g. "Eye referral feedback".
+    1. Open the Google Sheet "Drainage app DATA" (its tabs are already set up).
     2. Extensions > Apps Script. Delete what is there, paste ALL of this file, click Save (the disk icon).
     3. Deploy > New deployment > gear icon > Web app.
          Execute as: Me      Who has access: Anyone
        Deploy > Authorize access > your Google account > Advanced > "Go to ... (unsafe)" > Allow.
        ("unsafe" only means Google hasn't reviewed a script you wrote yourself.)
-    4. Copy the Web app URL (ends in /exec). Open it in your browser: it should say "Eye referral feedback is working".
+    4. Copy the Web app URL (ends in /exec). Open it in your browser: it should say "Referral pathway feedback is working".
     5. Paste it into index.html at  const FEEDBACK_URL = "";  (or send it to Claude to do).
   The tabs (Daily searches, Feedback, New areas, Notes) appear by themselves with the first message.
 
@@ -47,7 +47,7 @@ function reply_(ok) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput("Eye referral feedback is working.");
+  return ContentService.createTextOutput("Referral pathway feedback is working.");
 }
 
 function doPost(e) {

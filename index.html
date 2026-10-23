@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  EYE CLINIC REFERRAL PATHWAY: a standalone web page. No password, no server code, no Claude needed.
+  REFERRAL PATHWAY (Cape Town metro drainage areas): a standalone web page. No password, no server code, no Claude needed.
   The folder holds 6 files; keep them together:
     index.html (this page), manifest.webmanifest, icon-192.png, icon-512.png, apple-touch-icon.png
     (those four are only for "Add to home screen": the page works without them, but the button and icon need them),
@@ -16,13 +16,13 @@
     Netlify (easiest)
       1. Sign up free at https://www.netlify.com
       2. Open https://app.netlify.com/drop and drag the FOLDER that holds index.html onto the page.
-      3. Site configuration > Change site name, to get e.g. https://gsh-eye-referral.netlify.app
+      3. Site configuration > Change site name, to get e.g. https://gsh-referral.netlify.app
       To update later: Deploys tab > drag the folder in again. The link stays the same.
     GitHub Pages
-      1. Sign up free at https://github.com and create a new public repository (e.g. "eye-referral").
+      1. Sign up free at https://github.com and create a new public repository (e.g. "drainage-referral").
       2. "Add file" > "Upload files" > upload all 6 files > Commit changes.
       3. Settings > Pages > Source: "Deploy from a branch", Branch: main, folder / (root) > Save.
-      4. After a minute the page is at https://YOUR-NAME.github.io/eye-referral/
+      4. After a minute the page is at https://YOUR-NAME.github.io/drainage-referral/
       To update later: upload the new index.html again (it replaces the old one).
     On a phone: open the link and tap the green "Add to home screen" button at the top.
       Android: the phone's own install box opens, one more tap. iPhone: Apple allows no install button, so it shows the 3 steps.
@@ -40,7 +40,7 @@
     Other spellings of a name: const DRAIN_ALIAS = { "Philippi": ["phillipi", "philipi"], ... }
     Quick additions: near the end of the list section,  drainSetExtra([{"name": "Parklands", "path": "NSH"}, ...]);
       add  {"name": "New Area", "path": "VHW"}  (path = one of the PATHWAY codes above).
-    Clinic names shown on screen: const PATH_NAME = { GSH: "Groote Schuur eye clinic", ... }
+    Hospital names shown on screen: const PATH_NAME = { GSH: "Groote Schuur Hospital", ... }
     Change the "list updated" date in the header near the top of the page part.
     Suggested areas arrive in the Google Sheet "Drainage app DATA", tab "New areas": choose "Approved" in "Your decision",
     then add them here (or ask Claude to read the sheet, add the approved ones and mark them "Added").
@@ -49,15 +49,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Eye Referral Pathway</title>
-<meta name="description" content="Which eye clinic a Western Cape address is referred to, from the Groote Schuur ophthalmology drainage list.">
+<title>Referral Pathway</title>
+<meta name="description" content="Which hospital a Cape Town metro address is referred to, from the Groote Schuur drainage list.">
 <meta name="theme-color" content="#f4f6f5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121715" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Referral">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f5c'/%3E%3Cpath d='M5 16s4-7 11-7 11 7 11 7-4 7-11 7S5 16 5 16z' fill='none' stroke='%23fff' stroke-width='2.2'/%3E%3Ccircle cx='16' cy='16' r='3.4' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f5c'/%3E%3Cpath d='M16 28L9.07 16A8 8 0 1 1 22.93 16Z' fill='%23fff'/%3E%3Ccircle cx='16' cy='12' r='3.4' fill='%231f6f5c'/%3E%3C/svg%3E">
 <style>
 :root {
   --bg: #f4f6f5; --surface: #ffffff; --ink: #17201d; --muted: #5b6863; --line: #d9e0dd;
@@ -130,8 +130,8 @@ footer p { margin: 0 }
 <body>
 <main>
   <header>
-    <h1>Eye clinic referral pathway</h1>
-    <p>Western Cape · from the Groote Schuur ophthalmology drainage list · list updated 23 Oct 2026</p>
+    <h1>Referral pathway</h1>
+    <p>Cape Town metro drainage areas · from the Groote Schuur drainage list · list updated 23 Oct 2026</p>
   </header>
   <div class="card">
     <label for="q">Patient's address or suburb
@@ -178,9 +178,10 @@ const DRAIN_HOSP = { GSH: "Groote Schuur", HEC: "Heideveld EC", MPH: "Mitchells 
   WCD: "West Coast district", CWD: "Cape Winelands district", OVD: "Overberg district", GRD: "Garden Route district", CKD: "Central Karoo district" };
 const DRAIN_PATH = { GSH: "GSH", KDH: "TBH", FBH: "GSH", VHW: "VHW", NSH: "NSH", MPH: "MPH", HEC: "MPH", HBH: "TBH", KBH: "TBH", ERH: "TBH", TBH: "TBH",
   WCD: "WCD", CWD: "CWD", OVD: "OVD", GRD: "GRD", CKD: "CKD" };
-const PATH_NAME = { GSH: "Groote Schuur eye clinic", VHW: "Victoria Hospital eye clinic", NSH: "New Somerset eye clinic (then Groote Schuur)", MPH: "Mitchells Plain eye clinic",
-  TBH: "Tygerberg eye clinic", PAA: "Paarl eye clinic (then Tygerberg)", WOR: "Worcester eye clinic (then Tygerberg)",
+const PATH_NAME = { GSH: "Groote Schuur Hospital", VHW: "Victoria Hospital (Wynberg)", NSH: "New Somerset Hospital (then Groote Schuur)", MPH: "Mitchells Plain Hospital",
+  TBH: "Tygerberg Hospital", PAA: "Paarl Hospital (then Tygerberg)", WOR: "Worcester Hospital (then Tygerberg)",
   CWD: "Cape Winelands: Paarl or Worcester, path not set", OVD: "Overberg: referral path not set yet", GRD: "Garden Route: referral path not set yet", CKD: "Central Karoo: referral path not set yet" };
+const pathSet = p => !/not set/.test(PATH_NAME[p] || "not set");   // false for the districts with no referral path yet
 const DRAIN_DATA = `Athlone|GSH
 Athlone Industria|HEC
 Atlantis|NSH
@@ -909,16 +910,16 @@ function drainLookup(address) {
   [...new Set(toks.filter(t => drainPost().has(t)))].forEach(code => {
     const subs = drainPost().get(code), cand = subs.flatMap(byName), list = subs.join(", ");
     if (areas.length && areas.some(a => cand.includes(X.areas.find(b => b.area === a.area && b.path === a.path)))) { notes.push(`Postal code ${code} matches.`); return; }
-    // a code from a neighbouring suburb that goes to the same clinic changes nothing
-    if (areas.length && cand.length && cand.every(c => areas.some(a => a.path === c.path))) { notes.push(`Postal code ${code} is ${list}: same clinic.`); return; }
+    // a code from a neighbouring suburb that goes to the same hospital changes nothing
+    if (areas.length && cand.length && cand.every(c => areas.some(a => a.path === c.path))) { notes.push(`Postal code ${code} is ${list}: same hospital.`); return; }
     if (areas.length) asks.unshift(`Postal code ${code} is ${list}, not ${[...new Set(areas.map(a => a.area))].join(" / ")}. Ask which is right.`);
     else if (!cand.length) { notes.push(`Postal code ${code} is ${list}, which is not on the drainage list.`); return; }
     else notes.push(`Found from postal code ${code} only (${list}).`);
     cand.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path)) areas.push({ ...a, said: code, via: code }); });
-    if (!asks.length && new Set(cand.map(a => a.path)).size > 1) asks.unshift(`Postal code ${code} covers ${list}, which go to different clinics. Ask the suburb.`);
+    if (!asks.length && new Set(cand.map(a => a.path)).size > 1) asks.unshift(`Postal code ${code} covers ${list}, which go to different hospitals. Ask the suburb.`);
   });
   const paths = [...new Set(areas.map(a => a.path))].map(path => ({ path, areas: areas.filter(a => a.path === path) }));
-  areas.forEach(a => { if (a.note) asks.push(`${a.area}: ${a.note}. Check before referring.`); else if (a.district && !PATH_NAME[a.path].includes("eye clinic")) asks.push(`${a.area} (${a.district}): no referral path set up yet. Check before referring.`); });
+  areas.forEach(a => { if (a.note) asks.push(`${a.area}: ${a.note}. Check before referring.`); else if (a.district && !pathSet(a.path)) asks.push(`${a.area} (${a.district}): no referral path set up yet. Check before referring.`); });
   if (streetOnly) asks.unshift(`Only a street name was recognised (${streetHits.map(h => h.said).join(", ")}). Streets can run through more than one area. Ask for the suburb.`);
   else if (use.filter(h => new Set(h.list.map(a => a.path)).size === 1).map(h => h.list[0].path).filter((v, i, a) => a.indexOf(v) === i).length > 1)
     asks.unshift("The address names areas with different pathways. Ask which suburb they live in.");
@@ -983,7 +984,7 @@ function render() {
   if (R.notes.length) h += `<span class="muted">${esc(R.notes.join(" "))}</span>`;
   h += `</div>`;
   if (R.asks.length) h += `<div class="card check"><h2>Ask or check</h2><ul>${R.asks.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>`;
-  const unset = R.paths.filter(P => !PATH_NAME[P.path].includes("eye clinic"));
+  const unset = R.paths.filter(P => !pathSet(P.path));
   if (!R.paths.length || R.streetOnly || R.asks.length || unset.length) h += `<div class="card" id="mapBox">${mapHtml(txt)}</div>`;
   el.innerHTML = h;
 }
@@ -1064,8 +1065,8 @@ async function send(data) {
   catch { throw new Error("Couldn't send. Check the internet connection and try again."); }
   if (!r.ok || !(await r.json().catch(() => ({}))).ok) throw new Error("Couldn't save it. Please try again later.");
 }
-const CLINIC_OPTS = Object.entries(PATH_NAME).filter(([, n]) => n.includes("eye clinic")).map(([c, n]) => `<option value="${c}: ${esc(n)}">${esc(n)}</option>`).join("");
-document.querySelectorAll("select[name=path]").forEach(s => s.insertAdjacentHTML("beforeend", CLINIC_OPTS + `<option>Not sure</option>`));
+const PATH_OPTS = Object.keys(PATH_NAME).filter(pathSet).map(c => [c, PATH_NAME[c]]).map(([c, n]) => `<option value="${c}: ${esc(n)}">${esc(n)}</option>`).join("");
+document.querySelectorAll("select[name=path]").forEach(s => s.insertAdjacentHTML("beforeend", PATH_OPTS + `<option>Not sure</option>`));
 const fillNames = () => document.querySelectorAll("input.me").forEach(i => { if (!i.value) i.value = store("name"); });
 fillNames();
 document.addEventListener("submit", async ev => {
@@ -1087,7 +1088,7 @@ function renderFb(R) {
   fbKey = key;
   FB = R && R.paths.length ? { areas: R.paths.flatMap(P => P.areas.map(a => a.area)).join(", "), pathway: R.paths.map(P => PATH_NAME[P.path]).join(" or ") } : {};
   $("fb").innerHTML = !key ? "" : key === "?"
-    ? `<div class="card"><div class="row"><span>Know which clinic this area goes to?</span><button type="button" data-fb="add">Add this area</button></div></div>`
+    ? `<div class="card"><div class="row"><span>Know which hospital this area goes to?</span><button type="button" data-fb="add">Add this area</button></div></div>`
     : `<div class="card"><div class="row"><span>Was this right?</span><button type="button" data-fb="correct">Yes, correct</button><button type="button" data-fb="wrong">No, flag it</button></div></div>`;
 }
 $("fb").addEventListener("click", ev => {
@@ -1101,7 +1102,7 @@ $("fb").addEventListener("click", ev => {
     box.innerHTML = `<form class="form" data-type="feedback" data-thanks="Thank you. Flagged for review."><b>What should it be?</b>
       <span class="muted">Shown: ${esc(FB.pathway)} for ${esc(FB.areas)}</span>
       <input type="hidden" name="verdict" value="wrong"><input type="hidden" name="areas" value="${esc(FB.areas)}"><input type="hidden" name="pathway" value="${esc(FB.pathway)}">
-      <label>It should be<select name="correct"><option value="">Not sure</option>${CLINIC_OPTS}</select></label>
+      <label>It should be<select name="correct"><option value="">Not sure</option>${PATH_OPTS}</select></label>
       <label>Comment <span class="muted">(optional, no patient names)</span><textarea name="comment" rows="2" maxlength="500"></textarea></label>
       <label>Your name <span class="muted">(optional)</span><input name="from" class="me" maxlength="100" autocomplete="name"></label>
       <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -1153,7 +1154,7 @@ function howTo() {
     : touch ? [`Tap the browser menu <b>⋮</b> at the top right.`, `Tap <b>Add to Home screen</b> or <b>Install app</b>.`, `Tap <b>Add</b> or <b>Install</b>.`]
     : [`On a computer: in Chrome or Edge, click the install icon at the right end of the address bar, or menu <b>⋮</b> > <b>Install</b>.`,
        `For your phone: tap <b>Copy link</b>, send it to yourself (e.g. WhatsApp), open it on the phone and tap <b>Add to home screen</b> there.`];
-  $("howToBody").innerHTML = `<ol>${steps.map(s => `<li>${s}</li>`).join("")}</ol><span class="muted">Then the eye icon opens the app straight away, ready to type.</span>`;
+  $("howToBody").innerHTML = `<ol>${steps.map(s => `<li>${s}</li>`).join("")}</ol><span class="muted">Then the app's icon opens it straight away, ready to type.</span>`;
   $("howTo").showModal();
 }
 async function install() {
@@ -1174,7 +1175,7 @@ const link = () => location.href.split(/[?#]/)[0];
 async function copyLink(btn) { try { await navigator.clipboard.writeText(link()); btn.textContent = "Link copied"; } catch { prompt("Copy this link:", link()); } }
 $("copyLink").addEventListener("click", ev => copyLink(ev.target));
 $("share").addEventListener("click", ev => navigator.share
-  ? navigator.share({ title: "Eye referral pathway", text: "Which eye clinic to refer to, from the patient's address:", url: link() }).catch(() => {})
+  ? navigator.share({ title: "Referral pathway", text: "Which hospital to refer to, from the patient's address:", url: link() }).catch(() => {})
   : copyLink(ev.target));
 </script>
 </body>
