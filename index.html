@@ -1197,7 +1197,7 @@ $("clear").addEventListener("click", () => { $("q").value = ""; render(); $("q")
 
 /* ---------- feedback, new areas, notes and daily search counts → the developer's Google Sheet (set up with apps-script.gs).
    Only area names and the pathway shown are sent: never the street, house number or patient's name. ---------- */
-const FEEDBACK_URL = "";   // the Web app URL from apps-script.gs (ends in /exec); empty = feedback switched off
+const FEEDBACK_URL = "https://script.google.com/macros/s/AKfycbzqwbmCAI0LvCIsgBUs9W7xCFX480xGfMK2o86a1T29CGRTOffl-FzNsQ4imXOUwNs0/exec";   // the Web app URL from apps-script.gs; empty = feedback switched off
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k) || ""; localStorage.setItem(k, v); } catch { } return ""; };
 async function send(data) {
   if (!FEEDBACK_URL) throw new Error("Feedback isn't switched on yet.");
