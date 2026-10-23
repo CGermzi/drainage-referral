@@ -320,6 +320,10 @@ const PATH_NAME = { GSH: "Groote Schuur Hospital", VHW: "Victoria Hospital (Wynb
   TBH: "Tygerberg Hospital", PAA: "Paarl Hospital (then Tygerberg)", WOR: "Worcester Hospital (then Tygerberg)",
   CWD: "Cape Winelands: Paarl or Worcester, path not set", OVD: "Overberg: referral path not set yet", GRD: "Garden Route: referral path not set yet", CKD: "Central Karoo: referral path not set yet" };
 const pathSet = p => !/not set/.test(PATH_NAME[p] || "not set");   // false for the districts with no referral path yet
+const drainHospName = c => DRAIN_HOSP[c] + (/ EC$/.test(DRAIN_HOSP[c]) ? "" : " Hospital");
+// the first stop when it is not the referral hospital itself: "Karl Bremer Hospital › Tygerberg Hospital"
+const drainFirst = a => a.code && DRAIN_PATH[a.code] !== a.code ? drainHospName(a.code) : "";
+const drainRoute = a => (drainFirst(a) ? drainFirst(a) + " › " : "") + PATH_NAME[a.path];
 const DRAIN_DATA = `Athlone|GSH
 Athlone Industria|HEC
 Atlantis|NSH
@@ -979,7 +983,8 @@ const drainPost = () => DRAIN_POST || (DRAIN_POST = DRAIN_POST_DATA.split("\n").
 const DRAIN_ALIAS = { "Lentegeur": ["lenteguer", "lentegeuer"], "The Leagues": ["the leugues"], "Philippi": ["phillipi", "phillippi", "philipi"],
   "Mitchells Plain": ["mitchell s plain", "m plain"], "New Rest Squatter Camp": ["new rest"], "Heinz Park (Philippi)": ["heinz park"], "Khayelitsha": ["khayalitsha", "khayelitsa"],
   "Never Neva": ["never never"], "Sea Point": ["seapoint"], "Primrose Park": ["primose park"], "Saalberau": ["salberau"], "Bonteheuwel": ["bonteheuvel"],
-  "Manenberg": ["manenburg"], "Hanover Park": ["hannover park"], "Velddrif": ["veldrif"], "Samora Machel": ["samora"], "Bettys Bay": ["betty s bay"], "Plettenberg Bay": ["plett"] };
+  "Manenberg": ["manenburg"], "Hanover Park": ["hannover park"], "Velddrif": ["veldrif"], "Samora Machel": ["samora"], "Bettys Bay": ["betty s bay"], "Plettenberg Bay": ["plett"],
+  "Blouberg": ["bloubergstrand"], "Gugulethu": ["gugs"] };
 const DRAIN_STREET = new Set("street st str road rd avenue ave av crescent cres cr close cl drive dr way lane ln circle cir court ct walk place pl boulevard blvd highway hwy terrace tce grove mews link".split(" "));
 // address words that are never a place name (kept out of the spelling-mistake match)
 const DRAIN_STOP = new Set("cape town western south africa rsa wc unit flat house no number block section ext extension phase erf the and of in at near behind next to".split(" "));
@@ -993,7 +998,7 @@ function drainIndex() {
     return district ? { area, code: "", path: code, district, note: note || "", base: drainNorm(drainBase(area)) } : { area, code, path: DRAIN_PATH[code], base: drainNorm(drainBase(area)) }; })
     .concat(DRAIN_EXTRA.filter(x => PATH_NAME[x.path]).map(x => ({ area: x.name, code: "", path: x.path, district: "Added by you", note: "", base: drainNorm(drainBase(x.name)) })));
   const byKey = new Map(), keys = [];
-  areas.forEach(a => [a.base, ...(DRAIN_ALIAS[a.area] || [])].forEach(v => {
+  areas.forEach(a => [a.base, a.area, ...(DRAIN_ALIAS[a.area] || [])].forEach(v => {
     const k = drainNorm(v).replace(/ /g, ""); if (!k) return;
     if (!byKey.has(k)) { byKey.set(k, []); keys.push(k); }
     if (!byKey.get(k).includes(a)) byKey.get(k).push(a);
@@ -1017,7 +1022,7 @@ function drainNear(w, slack) {
 // → { paths: [{ path, areas }], asks: [text], notes: [text], guesses: [area], streetOnly }
 function drainLookup(address) {
   const X = drainIndex(), toks = drainNorm(address).split(" ").filter(Boolean), hits = [];
-  const word = (i, n) => toks.slice(i, i + n), plain = ws => ws.every(t => !/\d/.test(t) && !DRAIN_STOP.has(t) && !DRAIN_STREET.has(t));
+  const word = (i, n) => toks.slice(i, i + n), plain = ws => !DRAIN_STOP.has(ws[0]) && ws.every(t => !/\d/.test(t) && !DRAIN_STREET.has(t));
   for (let i = 0; i < toks.length; i++) for (let n = 1; n <= 4 && i + n <= toks.length; n++) {
     const said = word(i, n).join(" "), key = word(i, n).join(""), list = X.byKey.get(key);
     const street = DRAIN_STREET.has(toks[i + n] || "");
@@ -1041,7 +1046,7 @@ function drainLookup(address) {
     h.list.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path)) areas.push({ ...a, said: h.said }); });
     if (h.d) notes.push(`Read "${h.said}" as ${h.list.map(a => a.area).join(" / ")}.`);
     const ps = [...new Set(h.list.map(a => a.path))];
-    if (ps.length > 1) asks.push(`"${h.said}" can be ${h.list.map(a => `${a.area} (${PATH_NAME[a.path]})`).join(" or ")}. Ask which part they live in.`);
+    if (ps.length > 1 || new Set(h.list.map(drainRoute)).size > 1) asks.push(`"${h.said}" can be ${h.list.map(a => `${a.area} (${drainRoute(a)})`).join(" or ")}. Ask which part they live in.`);
   });
   // postal codes: confirm the suburb, find it when only the code is given, or flag a code that belongs elsewhere
   const byName = n => { const exact = X.areas.filter(a => a.area.toLowerCase() === n.toLowerCase()); return exact.length ? exact : X.byKey.get(drainNorm(drainBase(n)).replace(/ /g, "")) || []; };
@@ -1063,7 +1068,7 @@ function drainLookup(address) {
     asks.unshift("The address names areas with different pathways. Ask which suburb they live in.");
   // a longer name that goes elsewhere ("Athlone" vs "Athlone Industria", "Morgenster" vs "Morgenster Hoogte")
   areas.forEach(a => X.areas.forEach(b => {
-    if (b.path !== a.path && b.base.startsWith(a.base + " ") && !areas.some(x => x.area === b.area)) asks.push(`If they live in ${b.area}, the pathway is ${PATH_NAME[b.path]} instead. Check.`);
+    if (drainRoute(b) !== drainRoute(a) && b.base.startsWith(a.base + " ") && !areas.some(x => x.area === b.area)) asks.push(`If they live in ${b.area}, the pathway is ${drainRoute(b)} instead. Check.`);
   }));
   let guesses = [];
   if (!areas.length) {   // nothing recognised: wider spelling search, offered as "did you mean"
@@ -1114,7 +1119,7 @@ function render() {
   renderFb(R); countSearch(R, txt);
   const hosp = a => a.district === "Added by you" ? "added to the list" : a.district ? `${esc(a.district)} district${a.note ? ` (${esc(a.note)})` : ""}` : `${esc(DRAIN_HOSP[a.code])} (${a.code})`;
   // the first stop when it differs from the referral hospital: "Khayelitsha Hospital > Tygerberg Hospital"
-  const hop = P => [...new Set(P.areas.filter(a => a.code && DRAIN_PATH[a.code] !== a.code).map(a => DRAIN_HOSP[a.code] + (/ EC$/.test(DRAIN_HOSP[a.code]) ? "" : " Hospital")))].join(" / ");
+  const hop = P => { const h = [...new Set(P.areas.map(a => drainFirst(a) || "direct"))]; return h.join("") === "direct" ? "" : h.join(" or "); };
   const route = P => `<div class="route">${hop(P) ? `<span class="hop">${esc(hop(P))}</span><span class="arr" aria-label="then">›</span>` : ""}<span class="big">${esc(PATH_NAME[P.path])}</span></div>`;
   const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
   let h;
@@ -1177,7 +1182,7 @@ function renderSugg() {
   S = drainSuggest(txt);
   const exact = S.list.length === 1 && drainNorm(S.list[0].area) === drainNorm(txt.split(/[,\n]/).pop());
   if (!S.list.length || exact || document.activeElement !== $("q")) { box.hidden = true; box.innerHTML = ""; return; }
-  box.innerHTML = S.list.map((a, i) => `<button type="button" data-i="${i}" role="option"><b>${esc(a.area)}</b><span>${esc(PATH_NAME[a.path] || "")}</span></button>`).join("");
+  box.innerHTML = S.list.map((a, i) => `<button type="button" data-i="${i}" role="option"><b>${esc(a.area)}</b><span>${esc(PATH_NAME[a.path] ? drainRoute(a) : "")}</span></button>`).join("");
   box.hidden = false;
 }
 $("q").addEventListener("input", () => { render(); renderSugg(); });
