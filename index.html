@@ -1,7 +1,8 @@
 <!doctype html>
 <!--
   REFERRAL PATHWAY (Cape Town metro drainage areas): a standalone web page. No password, no server code, no Claude needed.
-  The folder holds 6 files; keep them together:
+  The folder holds these files (and a reference/ folder with the drainage list PDF and poster photo
+  shown under "Made from reference drainage maps & lists"); keep them together:
     index.html (this page), manifest.webmanifest, icon-192.png, icon-512.png, apple-touch-icon.png
     (those four are only for "Add to home screen": the page works without them, but the button and icon need them),
     apps-script.gs: the Google Sheet that collects feedback, new areas, notes and daily search counts.
@@ -20,7 +21,7 @@
       To update later: Deploys tab > drag the folder in again. The link stays the same.
     GitHub Pages
       1. Sign up free at https://github.com and create a new public repository (e.g. "drainage-referral").
-      2. "Add file" > "Upload files" > upload all 6 files > Commit changes.
+      2. "Add file" > "Upload files" > upload all the files and the reference folder > Commit changes.
       3. Settings > Pages > Source: "Deploy from a branch", Branch: main, folder / (root) > Save.
       4. After a minute the page is at https://YOUR-NAME.github.io/drainage-referral/
       To update later: upload the new index.html again (it replaces the old one).
@@ -41,7 +42,7 @@
     Quick additions: near the end of the list section,  drainSetExtra([{"name": "Parklands", "path": "NSH"}, ...]);
       add  {"name": "New Area", "path": "VHW"}  (path = one of the PATHWAY codes above).
     Hospital names shown on screen: const PATH_NAME = { GSH: "Groote Schuur Hospital", ... }
-    Change the "list updated" date in the header near the top of the page part.
+    Change the "List last updated" date in the Reference data panel (search for: last updated).
     Suggested areas arrive in the Google Sheet "Drainage app DATA", tab "New areas": choose "Approved" in "Your decision",
     then add them here (or ask Claude to read the sheet, add the approved ones and mark them "Added").
 -->
@@ -51,8 +52,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Referral Pathway</title>
 <meta name="description" content="Which hospital a Cape Town metro address is referred to, from the Groote Schuur drainage list.">
-<meta name="theme-color" content="#f4f6f5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121715" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1311" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Referral">
 <link rel="manifest" href="manifest.webmanifest">
@@ -60,91 +61,202 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f5c'/%3E%3Cpath d='M16 28L9.07 16A8 8 0 1 1 22.93 16Z' fill='%23fff'/%3E%3Ccircle cx='16' cy='12' r='3.4' fill='%231f6f5c'/%3E%3C/svg%3E">
 <style>
 :root {
-  --bg: #f4f6f5; --surface: #ffffff; --ink: #17201d; --muted: #5b6863; --line: #d9e0dd;
-  --accent: #1f6f5c; --accent-soft: #e3f0ec; --warn: #8a5a00; --warn-soft: #fbf1dc; --err: #a3262a;
+  --bg: #f5f3ee; --surface: #ffffff; --raised: #faf9f6; --ink: #15201c; --muted: #5f6b66; --line: #e4e1d9;
+  --accent: #17604f; --on-accent: #ffffff; --accent-soft: #e4eeea; --warn: #8a5a00; --warn-soft: #fbf1db; --err: #a3262a;
+  --shadow: 0 1px 2px rgb(20 30 26 / .05), 0 12px 32px -14px rgb(20 30 26 / .16);
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #121715; --surface: #1b2220; --ink: #e6ece9; --muted: #9aa8a2; --line: #2e3835;
-  --accent: #6cc7ac; --accent-soft: #1c332c; --warn: #e8b85c; --warn-soft: #33290f; --err: #ff8a8d; color-scheme: dark } }
+  --bg: #0e1311; --surface: #161c1a; --raised: #1b2220; --ink: #e7ece9; --muted: #98a59f; --line: #27302c;
+  --accent: #7ccfb5; --on-accent: #0e1311; --accent-soft: #16302a; --warn: #e8b85c; --warn-soft: #2e2510; --err: #ff8a8d;
+  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 14px 34px -16px rgb(0 0 0 / .7); color-scheme: dark } }
 :root[data-theme="dark"] {
-  --bg: #121715; --surface: #1b2220; --ink: #e6ece9; --muted: #9aa8a2; --line: #2e3835;
-  --accent: #6cc7ac; --accent-soft: #1c332c; --warn: #e8b85c; --warn-soft: #33290f; --err: #ff8a8d; color-scheme: dark }
+  --bg: #0e1311; --surface: #161c1a; --raised: #1b2220; --ink: #e7ece9; --muted: #98a59f; --line: #27302c;
+  --accent: #7ccfb5; --on-accent: #0e1311; --accent-soft: #16302a; --warn: #e8b85c; --warn-soft: #2e2510; --err: #ff8a8d;
+  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 14px 34px -16px rgb(0 0 0 / .7); color-scheme: dark }
 * { box-sizing: border-box }
 html { -webkit-text-size-adjust: 100% }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font);
-  padding: env(safe-area-inset-top, 0px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px) }
-main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding-block: 20px }
-header h1 { margin: 0; font-size: 1.35rem; line-height: 1.25; text-wrap: balance }
-header p { margin: 4px 0 0; color: var(--muted); font-size: .9rem }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
-.card h2 { margin: 0; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600 }
-label { display: flex; flex-direction: column; gap: 6px; font-weight: 600 }
-textarea { font: 1.05rem/1.4 var(--font); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-height: 5.2em; resize: vertical; width: 100% }
-textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent }
-.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px }
+body { margin: 0; min-height: 100dvh; color: var(--ink); font: 16px/1.5 var(--font);
+  background: radial-gradient(900px 420px at 50% -180px, var(--accent-soft), transparent 70%) no-repeat, var(--bg);
+  padding: env(safe-area-inset-top, 0px) 16px calc(env(safe-area-inset-bottom, 0px) + 28px) }
+main { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-block: 26px 12px }
+svg { flex: none }
+
+/* header */
+.top { display: flex; align-items: center; gap: 14px; padding: 2px 2px 4px }
+.mark { width: 50px; height: 50px; border-radius: 15px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; flex: none;
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--accent) 80%, transparent) }
+.mark svg { width: 27px; height: 27px }
+.mark.sm { width: 38px; height: 38px; border-radius: 11px; box-shadow: none } .mark.sm svg { width: 20px; height: 20px }
+.top h1 { margin: 0; font: 600 1.7rem/1.1 var(--serif); letter-spacing: -.01em; text-wrap: balance }
+.top p { margin: 3px 0 0; color: var(--muted); font-size: .93rem }
+button.pill { margin-top: 8px; gap: 6px; padding: 3px 11px 3px 9px; font: 500 .78rem var(--font); color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 70%, transparent); text-align: left }
+button.pill:hover { color: var(--accent) }
+button.pill svg { width: 14px; height: 14px; color: var(--accent) }
+
+/* cards and text */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; box-shadow: var(--shadow) }
+.card h2 { margin: 0; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 650 }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px }
+.between { justify-content: space-between }
 .muted { color: var(--muted); font-size: .88rem }
-button { font: 600 .95rem var(--font); border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink) }
-button:hover { border-color: var(--accent) }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-.sugg { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
-.sugg button { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; font-weight: 400; font-size: 1rem }
+.err { color: var(--err) }
+ul, ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 5px }
+span.ic { width: 36px; height: 36px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none }
+span.ic svg { width: 18px; height: 18px }
+
+/* the search box */
+.search-label { flex-direction: row; align-items: center; gap: 8px; font-size: .95rem }
+.search .between .muted { flex: 1 1 0; min-width: 0 }
+.search-label svg { width: 18px; height: 18px; color: var(--accent) }
+textarea { font: 1.1rem/1.45 var(--font); color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-height: 5.4em; resize: vertical; width: 100%; transition: border-color .15s, box-shadow .15s }
+textarea::placeholder, input::placeholder { color: color-mix(in srgb, var(--muted) 75%, transparent) }
+textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent) }
+.sugg { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow) }
+.sugg button { justify-content: space-between; align-items: baseline; gap: 10px; text-align: left; padding: 11px 14px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; font-weight: 500; font-size: 1rem; background: transparent }
 .sugg button:last-child { border-bottom: 0 }
-.sugg button span { color: var(--muted); font-size: .8rem; text-align: right }
-.answer { border-left: 4px solid var(--accent) }
-.big { font-size: 1.35rem; font-weight: 700; line-height: 1.25; color: var(--accent); text-wrap: balance }
-.answer.ask { border-left-color: var(--warn) }
-.answer.ask .big, .answer.none .big { color: var(--ink) }
-.answer.none { border-left-color: var(--line) }
-ul, ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px }
-.primary { background: var(--accent); border-color: var(--accent); color: var(--surface) }
+.sugg button:hover, .sugg button:focus-visible { background: var(--accent-soft); outline-offset: -2px }
+.sugg button:active { transform: none }
+.sugg button span { color: var(--muted); font-size: .8rem; font-weight: 400; text-align: right }
+
+/* buttons */
+button { font: 600 .93rem var(--font); border-radius: 999px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; transition: background .15s, border-color .15s, color .15s, transform .1s }
+button:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)) }
+button:active { transform: scale(.98) }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
 button:disabled { opacity: .6; cursor: default }
-input, select { font: 1rem var(--font); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; font-weight: 400 }
-input:focus, select:focus, .form textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent }
-.form { display: flex; flex-direction: column; gap: 10px; padding-top: 8px }
+button svg { width: 16px; height: 16px }
+.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent) }
+.primary:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); border-color: transparent }
+.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 6px 12px }
+.ghost:hover { color: var(--ink); background: var(--raised); border-color: transparent }
+.linkish { border: 0; background: none; color: var(--accent); padding: 4px 6px; font-weight: 600 }
+.linkish:hover { text-decoration: underline }
+
+/* the answer */
+.answer { position: relative; overflow: hidden; gap: 6px; border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); background: linear-gradient(180deg, var(--accent-soft), var(--surface) 80%) }
+.answer::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent) }
+.route { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px }
+.route .hop { font: 600 1.15rem/1.25 var(--serif); color: var(--ink) }
+.route .arr { color: var(--muted); font-size: 1.5rem; line-height: 1 }
+.big { font: 600 1.6rem/1.18 var(--serif); letter-spacing: -.01em; color: var(--accent); text-wrap: balance; margin-bottom: 2px }
+.answer.ask { border-color: color-mix(in srgb, var(--warn) 30%, var(--line)); background: linear-gradient(180deg, var(--warn-soft), var(--surface) 80%) }
+.answer.ask::before { background: var(--warn) }
+.answer.ask .big, .answer.none .big { color: var(--ink) }
+.answer.none { background: var(--surface); border-color: var(--line) }
+.answer.none::before { background: var(--line) }
+.check { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 22%, transparent); box-shadow: none }
+.check h2 { color: var(--warn) }
+#fb .card { box-shadow: none; background: color-mix(in srgb, var(--surface) 60%, transparent); padding: 12px 16px }
+#fb .card > .row > span { flex: 1 1 auto; font-weight: 600 }
+#fb button { padding: 7px 14px; font-size: .88rem }
+
+/* forms */
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .92rem }
+input, select { font: 1rem var(--font); color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; font-weight: 400 }
+select { appearance: none; padding-right: 36px; background: var(--raised) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23808b86' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 13px center / 12px 8px }
+.form { display: flex; flex-direction: column; gap: 12px; padding: 2px 0 16px }
 .form textarea { min-height: 3.6em; font-size: 1rem }
 .form label .muted { font-weight: 400 }
-details { border-top: 1px solid var(--line); padding-top: 8px }
-details:first-of-type { border-top: 0; padding-top: 0 }
-summary { cursor: pointer; font-weight: 600; padding: 4px 0 }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px }
-.bar { position: fixed; z-index: 5; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); max-width: 616px; margin: 0 auto;
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgb(0 0 0 / .18) }
-.bar span { flex: 1; font-size: .92rem; line-height: 1.3 }
-.bar #barX { border: 0; padding: 8px 10px; color: var(--muted) }
+
+/* help list */
+.help { gap: 0; padding-bottom: 4px }
+.help h2 { padding-bottom: 4px }
+details { border-top: 1px solid var(--line) }
+.help h2 + details { border-top: 0 }
+summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px 0; font-weight: 600 }
+summary::-webkit-details-marker { display: none }
+summary small, .ref small { display: block; font-weight: 400; color: var(--muted); font-size: .83rem }
+summary::after { content: ""; margin-left: auto; margin-right: 4px; width: 8px; height: 8px; flex: none; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .2s }
+details[open] summary::after { transform: rotate(45deg) }
+
+/* home screen card and bar */
+.promo { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px 14px; background: linear-gradient(135deg, var(--accent-soft), var(--surface) 70%) }
+.promo .txt { flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px }
+.promo > .row { flex: 1 1 100% }
+.bar { position: fixed; z-index: 5; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); max-width: 600px; margin: 0 auto;
+  display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 40px -14px rgb(0 0 0 / .35) }
+.bar span { flex: 1; font-size: .9rem; line-height: 1.3 }
 body:has(.bar:not([hidden])) { padding-bottom: 110px }
-dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); width: min(440px, calc(100vw - 32px)); padding: 16px 18px }
-dialog::backdrop { background: rgb(0 0 0 / .45) }
-dialog h2 { margin: 0 0 10px; font-size: 1.05rem }
-dialog .row { margin-top: 14px; justify-content: flex-end }
-#howToBody { display: flex; flex-direction: column; gap: 10px }
-.check { background: var(--warn-soft); border-color: transparent }
-.check h2 { color: var(--warn) }
-.err { color: var(--err) }
-footer { color: var(--muted); font-size: .82rem; display: flex; flex-direction: column; gap: 6px; padding-top: 6px }
+
+/* dialogs: the home-screen guide and the reference data */
+dialog { border: 0; border-radius: 22px; background: var(--surface); color: var(--ink); width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; overflow: auto; box-shadow: 0 30px 70px -20px rgb(0 0 0 / .5) }
+dialog[open] { animation: rise .22s ease-out }
+dialog::backdrop { background: rgb(10 14 12 / .5); backdrop-filter: blur(2px) }
+@keyframes rise { from { transform: translateY(16px); opacity: 0 } }
+@media (max-width: 560px) { dialog { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 22px 22px 0 0; max-height: 92dvh } }
+.dlg-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 18px 10px; background: var(--surface) }
+.dlg-head h2 { margin: 0; font: 600 1.25rem var(--serif) }
+.icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 1rem }
+.dlg-body { padding: 2px 18px 18px; display: flex; flex-direction: column; gap: 14px }
+.dlg-body p { margin: 0 }
+.dlg-foot { position: sticky; bottom: 0; justify-content: flex-end; padding: 12px 18px calc(env(safe-area-inset-bottom, 0px) + 14px); background: var(--surface); border-top: 1px solid var(--line) }
+#howToBody { padding-bottom: 12px }
+.lead { font-weight: 600 }
+.quick { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--accent-soft) }
+.ref { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--raised); color: var(--ink); text-decoration: none; font-weight: 600 }
+.ref:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)) }
+.ref::after { content: "↗"; margin-left: auto; color: var(--muted); font-weight: 400 }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.choice { position: relative; flex-direction: column; gap: 8px; padding: 20px 10px 16px; border-radius: 16px; font-size: 1rem; background: var(--raised) }
+.choice svg { width: 34px; height: 34px; color: var(--accent) }
+.choice.mine { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) }
+.choice .tag { position: absolute; top: 8px; right: 8px; font-size: .66rem; font-weight: 700; letter-spacing: .02em; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 1px 7px }
+.back { align-self: flex-start; margin-left: -6px }
+.steps { list-style: none; padding: 0; counter-reset: s; gap: 20px }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 8px 12px }
+.steps li::before { content: counter(s); width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: .9rem; display: grid; place-items: center }
+.steps .txt { padding-top: 3px }
+.steps .txt svg { width: 18px; height: 18px; vertical-align: -4px; color: var(--accent) }
+.steps .muted { display: block; margin-top: 2px }
+.steps .mock { grid-column: 2; width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--line); background: var(--raised) }
+.tip { font-size: .86rem; color: var(--muted); background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px }
+.tip.warn { color: var(--ink); background: var(--warn-soft); border-color: transparent }
+
+/* the phone-screen drawings in the guide */
+.mock .scr { fill: var(--surface) } .mock .bg { fill: var(--raised) } .mock .ln { fill: var(--line) }
+.mock .dim { fill: var(--ink); opacity: .08 } .mock .box { fill: var(--surface); stroke: var(--line) }
+.mock .t { fill: var(--ink); font: 600 12px var(--font) } .mock .tm { fill: var(--muted); font: 11px var(--font) }
+.mock .ta { fill: var(--accent); font: 700 12px var(--font) } .mock .to { fill: var(--on-accent); font: 700 12px var(--font) }
+.mock .ic { fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.mock .hi { stroke: var(--accent); stroke-width: 2.2 } .mock .acc { fill: var(--accent) } .mock .onacc { fill: var(--on-accent) } .mock .dt { fill: var(--accent) }
+.mock .ring { fill: none; stroke: var(--accent); stroke-width: 2.5 }
+.mock .pulse { fill: var(--accent); transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out infinite }
+@keyframes pulse { from { transform: scale(.6); opacity: .35 } to { transform: scale(1.6); opacity: 0 } }
+@media (prefers-reduced-motion: reduce) { .mock .pulse, dialog[open] { animation: none } .mock .pulse { opacity: .15 } }
+
+footer { color: var(--muted); font-size: .8rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 6px 8px 0; max-width: 520px; margin: 0 auto }
 footer p { margin: 0 }
-footer a { color: var(--accent) }
+footer a { color: var(--accent); font-weight: 600 }
 [hidden] { display: none !important }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <h1>Referral pathway</h1>
-    <p>Cape Town metro drainage areas · from the Groote Schuur drainage list · list updated 23 Oct 2026</p>
+  <header class="top">
+    <div class="mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="currentColor" fill-rule="evenodd" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z M16 8.6a3.4 3.4 0 1 0 0 6.8a3.4 3.4 0 1 0 0-6.8Z"/></svg></div>
+    <div>
+      <h1>Referral pathway</h1>
+      <p>Cape Town metro drainage areas</p>
+      <button type="button" class="pill" id="refBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>Made from reference drainage maps &amp; lists</button>
+    </div>
   </header>
-  <div class="card">
-    <label for="q">Patient's address or suburb
-      <textarea id="q" autocomplete="off" spellcheck="false" placeholder="e.g. 12 Lansdowne Road, Philippi, 7785 (street, suburb and postal code all help)"></textarea></label>
+  <div class="card search">
+    <label for="q" class="search-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Patient's address or suburb</label>
+    <textarea id="q" autocomplete="off" spellcheck="false" placeholder="e.g. 12 Lansdowne Road, Philippi, 7785"></textarea>
     <div id="sugg" class="sugg" role="listbox" aria-label="Matching areas" hidden></div>
-    <div class="row"><button id="clear" type="button">Clear</button><span class="muted">Start typing a suburb to see matching areas.</span></div>
+    <div class="row between"><span class="muted">Street, suburb and postal code all help.</span><button id="clear" class="ghost" type="button">Clear</button></div>
   </div>
   <div id="out" aria-live="polite"></div>
   <div id="fb"></div>
-  <section class="card">
+  <section class="card help">
     <h2>Help improve the list</h2>
-    <details id="addArea"><summary>Add a missing area</summary>
+    <details id="addArea"><summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-6.2-6-11a6 6 0 0 1 12 0c0 1.2-.4 2.5-1 3.7"/><path d="M19 16v6M16 19h6"/></svg></span><span>Add a missing area<small>Suggest an area and its referral hospital</small></span></summary>
       <form class="form" data-type="area" data-thanks="Thank you. Sent for review before it is added.">
         <label>Area or suburb<input name="area" required maxlength="100" autocomplete="off"></label>
         <label>Referral pathway<select name="path" required><option value="">Choose…</option></select></label>
@@ -154,7 +266,7 @@ footer a { color: var(--accent) }
         <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <div class="row"><button class="primary">Send for review</button><span class="msg muted" role="status"></span></div>
       </form></details>
-    <details id="devNote"><summary>Note to the developer</summary>
+    <details id="devNote"><summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></span><span>Note to the developer<small>Ideas, problems or better drainage data</small></span></summary>
       <form class="form" data-type="note" data-thanks="Thank you. Your note was sent.">
         <label>Your note<textarea name="note" rows="3" required maxlength="1000"></textarea></label>
         <label>Your name <span class="muted">(optional)</span><input name="from" class="me" maxlength="100" autocomplete="name"></label>
@@ -163,14 +275,34 @@ footer a { color: var(--accent) }
         <div class="row"><button class="primary">Send note</button><span class="msg muted" role="status"></span></div>
       </form></details>
   </section>
-  <div class="row"><button id="install" class="primary" type="button">Add to home screen</button><button id="share" type="button">Share this app</button></div>
+  <section class="card promo">
+    <div class="mark sm" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="currentColor" fill-rule="evenodd" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z M16 8.6a3.4 3.4 0 1 0 0 6.8a3.4 3.4 0 1 0 0-6.8Z"/></svg></div>
+    <div class="txt"><b id="promoTitle">Keep it one tap away</b><span class="muted" id="promoText">Add the app to your home screen, or share it with a colleague.</span></div>
+    <div class="row"><button id="install" class="primary" type="button">Add to home screen</button><button id="share" type="button">Share this app</button></div>
+  </section>
   <footer>
     <p>Pathways are given according to the known drainage areas. We do not take responsibility for incorrect details: help us improve by flagging mistakes.</p>
-    <p>Have more detailed drainage area data? Please send it in a <a href="#devNote" data-open="devNote">note to the developer</a>.</p>  </footer>
+    <p>Have more detailed drainage area data? Please send it in a <a href="#devNote" data-open="devNote">note to the developer</a>.</p>
+  </footer>
 </main>
-<div id="installBar" class="bar" hidden><span>Add this app to your home screen: one tap to open next time.</span><button id="barAdd" class="primary" type="button">Add</button><button id="barX" type="button" aria-label="Not now">✕</button></div>
-<dialog id="howTo" aria-labelledby="howToTitle"><h2 id="howToTitle">Add to home screen</h2><div id="howToBody"></div>
-  <div class="row"><button id="copyLink" type="button">Copy link</button><button id="howToClose" class="primary" type="button">Done</button></div></dialog>
+<div id="installBar" class="bar" hidden><div class="mark sm" aria-hidden="true"><svg viewBox="0 0 32 32"><path fill="currentColor" fill-rule="evenodd" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z M16 8.6a3.4 3.4 0 1 0 0 6.8a3.4 3.4 0 1 0 0-6.8Z"/></svg></div><span>Add to your home screen: one tap to open next time.</span><button id="barAdd" class="primary" type="button">Add</button><button id="barX" class="ghost icon-btn" type="button" aria-label="Not now">✕</button></div>
+<dialog id="howTo" aria-labelledby="howToTitle">
+  <div class="dlg-head"><h2 id="howToTitle">Add to home screen</h2><button class="ghost icon-btn" type="button" data-close aria-label="Close">✕</button></div>
+  <div id="howToBody" class="dlg-body"></div>
+  <div class="row dlg-foot"><button id="copyLink" type="button">Copy link</button><button class="primary" type="button" data-close>Done</button></div>
+</dialog>
+<dialog id="refs" aria-labelledby="refsTitle">
+  <div class="dlg-head"><h2 id="refsTitle">Reference data</h2><button class="ghost icon-btn" type="button" data-close aria-label="Close">✕</button></div>
+  <div class="dlg-body">
+    <div class="quick"><b>Have more detailed or newer drainage maps or lists?</b>
+      <span class="muted">This app is only as good as its data. Please send us anything more detailed or more recent: a map, a list, or a photo of one. Leave your phone or email and we'll collect it from you.</span>
+      <button class="primary" type="button" id="refSend">Send us newer data</button></div>
+    <p class="muted">The pathways in this app were made from these references:</p>
+    <a class="ref" href="reference/drainage-areas.pdf" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span><span>Drainage areas list<small>PDF · 3 pages · residential area and hospital</small></span></a>
+    <a class="ref" href="reference/drainage-poster.jpg" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></span><span>Groote Schuur / Mitchells Plain poster<small>Photo of the wall list</small></span></a>
+    <p class="muted">List last updated 23 Oct 2026.</p>
+  </div>
+</dialog>
 <script>
 /* drainage:start */
 const DRAIN_HOSP = { GSH: "Groote Schuur", HEC: "Heideveld EC", MPH: "Mitchells Plain", HBH: "Helderberg", KBH: "Karl Bremer", ERH: "Eerste River",
@@ -975,12 +1107,15 @@ function render() {
   const R = drainLookup(txt);
   renderFb(R); countSearch(R, txt);
   const hosp = a => a.district === "Added by you" ? "added to the list" : a.district ? `${esc(a.district)} district${a.note ? ` (${esc(a.note)})` : ""}` : `${esc(DRAIN_HOSP[a.code])} (${a.code})`;
+  // the first stop when it differs from the referral hospital: "Khayelitsha Hospital > Tygerberg Hospital"
+  const hop = P => [...new Set(P.areas.filter(a => a.code && DRAIN_PATH[a.code] !== a.code).map(a => DRAIN_HOSP[a.code] + (/ EC$/.test(DRAIN_HOSP[a.code]) ? "" : " Hospital")))].join(" / ");
+  const route = P => `<div class="route">${hop(P) ? `<span class="hop">${esc(hop(P))}</span><span class="arr" aria-label="then">›</span>` : ""}<span class="big">${esc(PATH_NAME[P.path])}</span></div>`;
   const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
   let h;
   if (!R.paths.length) h = `<div class="card answer none"><h2>Referral pathway</h2><span class="big">Area not found</span><span>Ask the patient for their suburb, or the clinic or day hospital they normally attend.</span>`
     + (R.guesses.length ? `<span>Did you mean: ${R.guesses.map(a => `<b>${esc(a.area)}</b> (${esc(PATH_NAME[a.path])})`).join(" · ")}?</span>` : "");
-  else if (R.paths.length === 1) h = `<div class="card answer${R.asks.length ? " ask" : ""}"><h2>Referral pathway</h2><span class="big">${esc(PATH_NAME[R.paths[0].path])}</span>${R.paths[0].areas.map(a => `<span>${areaLine(a)}</span>`).join("")}`;
-  else h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Ask the suburb: possible pathways</span><ul>${R.paths.map(P => `<li><b>${esc(PATH_NAME[P.path])}</b>: ${P.areas.map(areaLine).join("; ")}</li>`).join("")}</ul>`;
+  else if (R.paths.length === 1) h = `<div class="card answer${R.asks.length ? " ask" : ""}"><h2>Referral pathway</h2>${route(R.paths[0])}${R.paths[0].areas.map(a => `<span>${areaLine(a)}</span>`).join("")}`;
+  else h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Ask the suburb: possible pathways</span><ul>${R.paths.map(P => `<li><b>${hop(P) ? esc(hop(P)) + " › " : ""}${esc(PATH_NAME[P.path])}</b>: ${P.areas.map(areaLine).join("; ")}</li>`).join("")}</ul>`;
   if (R.notes.length) h += `<span class="muted">${esc(R.notes.join(" "))}</span>`;
   h += `</div>`;
   if (R.asks.length) h += `<div class="card check"><h2>Ask or check</h2><ul>${R.asks.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>`;
@@ -1095,8 +1230,10 @@ function renderFb(R) {
   FB = R && R.paths.length ? { areas: R.paths.flatMap(P => P.areas.map(a => a.area)).join(", "), pathway: R.paths.map(P => PATH_NAME[P.path]).join(" or ") } : {};
   $("fb").innerHTML = !key ? "" : key === "?"
     ? `<div class="card"><div class="row"><span>Know which hospital this area goes to?</span><button type="button" data-fb="add">Add this area</button></div></div>`
-    : `<div class="card"><div class="row"><span>Was this right?</span><button type="button" data-fb="correct">Yes, correct</button><button type="button" data-fb="wrong">No, flag it</button></div></div>`;
+    : `<div class="card"><div class="row"><span>Was this right?</span><button type="button" data-fb="correct">${ICON_OK}Yes, correct</button><button type="button" data-fb="wrong">${ICON_FLAG}No, flag it</button></div></div>`;
 }
+const ICON_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const ICON_FLAG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4h11l-2 4 2 4H5"/></svg>`;
 $("fb").addEventListener("click", ev => {
   const b = ev.target.closest("[data-fb]"); if (!b) return;
   const box = b.closest(".card");
@@ -1150,33 +1287,117 @@ const ios = /iphone|ipad|ipod/i.test(UA) || (navigator.platform === "MacIntel" &
 const inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)/i.test(UA);   // another app's built-in browser: it can't add to the home screen
 const SHARE = `<svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="Share" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M7 11H5v10h14V11h-2"/></svg>`;
 let installEv = null;
-function howTo() {
-  const steps = inApp ? [`This page is open inside another app (like WhatsApp), which can't add it to the home screen.`,
-        `Tap ${ios ? "<b>⋯</b> or the compass icon" : "<b>⋮</b>"} in a corner of the screen and choose <b>Open in ${ios ? "Safari" : "Chrome"}</b> (or "Open in browser").`,
-        `There, tap <b>Add to home screen</b> again.`]
-    : ios && /CriOS|EdgiOS|FxiOS/.test(UA) ? [`Tap the Share button ${SHARE} at the top right, next to the address.`, `Tap <b>Add to Home Screen</b>.`, `Tap <b>Add</b>.`]
-    : ios ? [`Tap the Share button ${SHARE} at the bottom of Safari (newer iPhones: tap <b>⋯</b> first, then <b>Share</b>).`, `Scroll down and tap <b>Add to Home Screen</b>.`, `Tap <b>Add</b>.`]
-    : /SamsungBrowser/.test(UA) ? [`Tap the menu <b>≡</b> at the bottom right.`, `Tap <b>Add page to</b>, then <b>Home screen</b>.`, `Tap <b>Add</b>.`]
-    : touch ? [`Tap the browser menu <b>⋮</b> at the top right.`, `Tap <b>Add to Home screen</b> or <b>Install app</b>.`, `Tap <b>Add</b> or <b>Install</b>.`]
-    : [`On a computer: in Chrome or Edge, click the install icon at the right end of the address bar, or menu <b>⋮</b> > <b>Install</b>.`,
-       `For your phone: tap <b>Copy link</b>, send it to yourself (e.g. WhatsApp), open it on the phone and tap <b>Add to home screen</b> there.`];
-  $("howToBody").innerHTML = `<ol>${steps.map(s => `<li>${s}</li>`).join("")}</ol><span class="muted">Then the app's icon opens it straight away, ready to type.</span>`;
-  $("howTo").showModal();
+
+// drawings of each phone screen, with a pulsing ring on the button to tap (not screenshots: they follow the page's light/dark colours)
+const svg = (h, inner) => `<svg class="mock" viewBox="0 0 300 ${h}" aria-hidden="true">${inner}</svg>`;
+const tap = (x, y, r = 17) => `<circle class="pulse" cx="${x}" cy="${y}" r="${r}"/><circle class="ring" cx="${x}" cy="${y}" r="${r}"/>`;
+const APP = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s / 32})"><rect class="acc" width="32" height="32" rx="7.5"/><path class="onacc" d="M16 28L9.07 16A8 8 0 1 1 22.93 16Z"/><circle class="acc" cx="16" cy="12" r="3.4"/></g>`;
+const lines = (x, y, ws) => ws.map((w, i) => `<rect class="ln" x="${x}" y="${y + i * 14}" width="${w}" height="6" rx="3"/>`).join("");
+function guide(os) {
+  const host = esc(location.host || "cgermzi.github.io");
+  const home = svg(150, `<rect class="bg" width="300" height="150"/>`
+    + [36, 104, 172, 240].flatMap(x => [18, 82].map(y => x === 104 && y === 82 ? "" : `<rect class="ln" x="${x}" y="${y}" width="40" height="40" rx="10"/><rect class="ln" x="${x + 8}" y="${y + 47}" width="24" height="5" rx="2.5"/>`)).join("")
+    + `<circle class="pulse" cx="124" cy="102" r="26"/>` + APP(104, 82, 40) + `<rect class="ring" x="98" y="76" width="52" height="52" rx="15"/><text class="t" x="124" y="143" text-anchor="middle">Referral</text>`);
+  const done = [`Done. Tap the green pin icon on your home screen: the app opens ready to type.`, home];
+  if (os === "ios") return { title: "On iPhone or iPad",
+    warn: inApp ? `Opened inside WhatsApp or another app? Tap <b>⋯</b> or the compass icon and choose <b>Open in Safari</b> first.` : "",
+    steps: [
+      [`At the bottom of Safari, tap the <b>Share</b> button ${SHARE}<span class="muted">On newer iPhones (iOS 26), tap <b>⋯</b> first, then <b>Share</b>.</span>`,
+        svg(160, `<rect class="scr" width="300" height="160"/>` + lines(20, 18, [200, 240, 170, 220]) + `<rect class="bg" y="76" width="300" height="84"/>`
+          + `<rect class="scr" x="20" y="84" width="260" height="28" rx="14"/><text class="tm" x="150" y="102" text-anchor="middle">${host}</text>`
+          + `<path class="ic" d="M44 130l-7 7 7 7M92 130l7 7-7 7M196 131c3-2 6-2 9 0 3-2 6-2 9 0v12c-3-2-6-2-9 0-3-2-6-2-9 0zM205 131v12"/><rect class="ic" x="252" y="132" width="12" height="12" rx="2.5"/><path class="ic" d="M256 128h11v11"/>`
+          + `<g transform="translate(138 125)"><path class="ic hi" d="M12 3v12M8 7l4-4 4 4M7 11H5v10h14V11h-2"/></g>` + tap(150, 137, 18))],
+      [`Scroll down the list and tap <b>Add to Home Screen</b>.<span class="muted">Can't see it? Scroll to the very bottom, tap <b>Edit Actions</b> and add it.</span>`,
+        svg(172, `<rect class="bg" width="300" height="172"/><rect class="scr" x="10" y="12" width="280" height="170" rx="16"/>` + APP(26, 24, 30)
+          + `<text class="t" x="66" y="37">Referral pathway</text><text class="tm" x="66" y="51">${host}</text><rect class="ln" x="24" y="64" width="252" height="1"/>`
+          + `<rect class="bg" x="22" y="74" width="256" height="90" rx="10"/><rect class="ln" x="34" y="104" width="244" height="1"/><rect class="ln" x="34" y="134" width="244" height="1"/>`
+          + `<text class="t" x="36" y="93">Copy</text><text class="t" x="36" y="123">Add Bookmark</text><text class="ta" x="36" y="153">Add to Home Screen</text>`
+          + `<rect class="ic" x="252" y="83" width="10" height="11" rx="2"/><path class="ic" d="M256 80h9v10M253 112h11v14l-5.5-4-5.5 4z"/>`
+          + `<circle class="pulse" cx="258" cy="149" r="14"/><rect class="ic hi" x="250" y="141" width="16" height="16" rx="4"/><path class="ic hi" d="M258 145v8M254 149h8"/>`
+          + `<rect class="ring" x="22" y="134" width="256" height="30" rx="10"/>`)],
+      [`Tap <b>Add</b> at the top right.<span class="muted">If you see "Open as Web App", leave it switched on.</span>`,
+        svg(150, `<rect class="scr" width="300" height="150"/><text class="ta" x="18" y="30" style="font-weight:500">Cancel</text>`
+          + `<text class="t" x="150" y="30" text-anchor="middle">Add to Home Screen</text><text class="ta" x="282" y="30" text-anchor="end">Add</text>` + tap(270, 26, 16)
+          + `<rect class="ln" y="46" width="300" height="1"/><rect class="bg" x="18" y="62" width="264" height="70" rx="12"/>` + APP(30, 73, 48)
+          + `<text class="t" x="92" y="92">Referral</text><rect class="ln" x="92" y="100" width="176" height="1"/><text class="tm" x="92" y="117">${host}</text>`)],
+      done],
+    tips: [`<b>Chrome on iPhone?</b> The Share button ${SHARE} is at the top right, next to the address. Then follow steps 2 to 4.`] };
+  if (os === "android") return { title: "On Android",
+    warn: inApp ? `Opened inside WhatsApp or another app? Tap <b>⋮</b> and choose <b>Open in Chrome</b> first.` : "",
+    steps: [
+      [`In Chrome, tap the menu <b>⋮</b> at the top right.`,
+        svg(130, `<rect class="scr" width="300" height="130"/><rect class="bg" width="300" height="52"/><rect class="scr" x="14" y="12" width="212" height="28" rx="14"/>`
+          + `<path class="ic" d="M27 23v-2a3 3 0 0 1 6 0v2M25.5 23h9v7h-9z"/><text class="tm" x="42" y="30">${host}</text>`
+          + `<rect class="ic" x="238" y="17" width="18" height="18" rx="4"/><text class="tm" x="247" y="30" text-anchor="middle">1</text>`
+          + `<circle class="dt" cx="279" cy="19" r="2.3"/><circle class="dt" cx="279" cy="26" r="2.3"/><circle class="dt" cx="279" cy="33" r="2.3"/>` + tap(279, 26, 15)
+          + lines(20, 70, [220, 180, 240, 150]))],
+      [`Tap <b>Add to Home screen</b>.<span class="muted">On some phones it says <b>Install app</b>.</span>`,
+        svg(200, `<rect class="scr" width="300" height="200"/><rect class="bg" width="300" height="52"/><rect class="scr" x="14" y="12" width="140" height="28" rx="14"/>` + lines(20, 70, [100, 90, 110])
+          + `<rect class="box" x="116" y="8" width="176" height="186" rx="12"/>` + [140, 170, 200, 230, 260].map(x => `<circle class="ln" cx="${x}" cy="30" r="7"/>`).join("")
+          + `<rect class="ln" x="116" y="48" width="176" height="1"/>`
+          + ["New tab", "History", "Downloads", "Share…"].map((n, i) => `<rect class="ln" x="130" y="${60 + i * 26}" width="12" height="12" rx="3"/><text class="t" x="152" y="${70 + i * 26}">${n}</text>`).join("")
+          + `<circle class="pulse" cx="136" cy="174" r="12"/><rect class="ic hi" x="129" y="167" width="13" height="13" rx="3"/><path class="ic hi" d="M135.5 170v7M132 173.5h7"/>`
+          + `<text class="ta" x="152" y="178">Add to Home screen</text><rect class="ring" x="122" y="160" width="164" height="28" rx="8"/>`)],
+      [`Tap <b>Install</b>.<span class="muted">If it asks, choose <b>Install</b> rather than "Create shortcut".</span>`,
+        svg(170, `<rect class="scr" width="300" height="170"/><rect class="dim" width="300" height="170"/><rect class="box" x="28" y="18" width="244" height="134" rx="18"/>`
+          + `<text class="t" x="48" y="46" style="font-size:14px">Install app</text>` + APP(48, 60, 36) + `<text class="t" x="96" y="76">Referral</text><text class="tm" x="96" y="92">${host}</text>`
+          + `<text class="ta" x="168" y="135" text-anchor="end">Cancel</text><circle class="pulse" cx="219" cy="130" r="24"/>`
+          + `<rect class="acc" x="184" y="116" width="70" height="28" rx="14"/><text class="to" x="219" y="134" text-anchor="middle">Install</text><rect class="ring" x="179" y="111" width="80" height="38" rx="19"/>`)],
+      done],
+    tips: [`<b>Samsung Internet?</b> Tap the menu <b>≡</b> at the bottom right, then <b>Add page to</b> › <b>Home screen</b>.`] };
+  return { title: "On a computer", warn: "", tips: [], steps: [
+    [`In Chrome or Edge, click the install icon at the right end of the address bar, or open the menu <b>⋮</b> and choose <b>Install</b>.`],
+    [`To get it on your phone too: tap <b>Copy link</b> below, send it to yourself (e.g. on WhatsApp), open it on your phone and tap <b>Add to home screen</b> there.`]] };
 }
-async function install() {
-  if (installEv) { const ev = installEv; installEv = null; ev.prompt(); if ((await ev.userChoice).outcome === "accepted") hideInstall(); return; }
-  howTo();
+const PHONE = notch => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3${notch ? "M10.5 5h3" : ""}"/>${notch ? "" : `<circle cx="12" cy="5.3" r=".7" fill="currentColor"/>`}</svg>`;
+// first "iPhone or Android?" (the phone in hand is marked), then that phone's steps
+function howTo(os) {
+  const body = $("howToBody"), d = $("howTo");
+  const quick = installEv && os !== "ios" ? `<div class="quick"><b>Your browser can do this in one tap</b><button class="primary" type="button" data-act="prompt">Install now</button></div>` : "";
+  if (!os) {
+    const mine = ios ? "ios" : /android/i.test(UA) ? "android" : "";
+    $("howToTitle").textContent = "Add to home screen";
+    body.innerHTML = quick + `<p class="lead">Which phone do you have?</p><div class="choices">`
+      + [["ios", "iPhone or iPad", PHONE(true)], ["android", "Android", PHONE(false)]].map(([k, n, icon]) =>
+        `<button type="button" class="choice${k === mine ? " mine" : ""}" data-os="${k}">${k === mine ? `<span class="tag">This phone</span>` : ""}${icon}<span>${n}</span></button>`).join("")
+      + `</div><button type="button" class="linkish" data-os="desktop">On a computer instead?</button>`;
+  } else {
+    const g = guide(os);
+    $("howToTitle").textContent = g.title;
+    body.innerHTML = `<button type="button" class="linkish back" data-act="back">‹ Choose another phone</button>` + (g.warn ? `<p class="tip warn">${g.warn}</p>` : "") + quick
+      + `<ol class="steps">${g.steps.map(([t, img]) => `<li><div class="txt">${t}</div>${img || ""}</li>`).join("")}</ol>` + g.tips.map(t => `<p class="tip">${t}</p>`).join("");
+  }
+  if (!d.open) d.showModal();
+  d.scrollTop = 0;
 }
-function hideInstall() { $("install").hidden = $("installBar").hidden = true; }
+$("howToBody").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-os],[data-act]"); if (!b) return;
+  if (b.dataset.os) return howTo(b.dataset.os);
+  if (b.dataset.act === "back") return howTo();
+  const e = installEv; installEv = null; e.prompt();   // "Install now": the browser's own install box
+  e.userChoice.then(c => { if (c.outcome === "accepted") { $("howTo").close(); hideInstall(); } else howTo(); });
+});
+function hideInstall() { $("install").hidden = $("installBar").hidden = $("promoText").hidden = true; $("promoTitle").textContent = "Share it with a colleague"; }
 // the bottom bar shows after a first search, never while installed, and stays away 14 days after "✕"
 function showInstallBar() { if (!installed() && (touch || installEv) && Date.now() > +store("barNotBefore")) $("installBar").hidden = false; }
 if (installed()) hideInstall();
 addEventListener("beforeinstallprompt", ev => { ev.preventDefault(); installEv = ev; });
 addEventListener("appinstalled", hideInstall);
-$("install").addEventListener("click", install);
-$("barAdd").addEventListener("click", install);
+$("install").addEventListener("click", () => howTo());
+$("barAdd").addEventListener("click", () => howTo());
 $("barX").addEventListener("click", () => { $("installBar").hidden = true; store("barNotBefore", String(Date.now() + 14 * 864e5)); });
-$("howToClose").addEventListener("click", () => $("howTo").close());
+// dialogs close with ✕, "Done", or a tap on the dimmed background
+document.addEventListener("click", ev => { const c = ev.target.closest("[data-close]"); if (c) c.closest("dialog").close(); });
+document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", ev => { if (ev.target === d) d.close(); }));
+
+/* ---------- reference data: what the list was made from, and a request for newer maps ---------- */
+$("refBtn").addEventListener("click", () => $("refs").showModal());
+$("refSend").addEventListener("click", () => {
+  $("refs").close();
+  const d = $("devNote"), t = d.querySelector("textarea"); d.open = true;
+  if (!t.value) t.value = "I have more detailed or newer drainage data: ";
+  d.scrollIntoView({ behavior: "smooth", block: "start" }); t.focus({ preventScroll: true }); t.setSelectionRange(t.value.length, t.value.length);
+});
 const link = () => location.href.split(/[?#]/)[0];
 async function copyLink(btn) { try { await navigator.clipboard.writeText(link()); btn.textContent = "Link copied"; } catch { prompt("Copy this link:", link()); } }
 $("copyLink").addEventListener("click", ev => copyLink(ev.target));
