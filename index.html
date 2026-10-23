@@ -1,0 +1,1181 @@
+<!doctype html>
+<!--
+  EYE CLINIC REFERRAL PATHWAY: a standalone web page. No password, no server code, no Claude needed.
+  The folder holds 6 files; keep them together:
+    index.html (this page), manifest.webmanifest, icon-192.png, icon-512.png, apple-touch-icon.png
+    (those four are only for "Add to home screen": the page works without them, but the button and icon need them),
+    apps-script.gs: the Google Sheet that collects feedback, new areas, notes and daily search counts.
+      Its first lines say how to set it up once; then paste its URL at  const FEEDBACK_URL = ""  in this file.
+      Until then the page works, but feedback says "not switched on yet" and nothing is counted.
+
+  TRY IT ON YOUR COMPUTER
+    Double-click index.html: it opens in your browser and works offline (the map lookup needs internet).
+    The "Add to home screen" button only works once the page is online (https).
+
+  PUT IT ONLINE FOR EVERYONE (free; pick one)
+    Netlify (easiest)
+      1. Sign up free at https://www.netlify.com
+      2. Open https://app.netlify.com/drop and drag the FOLDER that holds index.html onto the page.
+      3. Site configuration > Change site name, to get e.g. https://gsh-eye-referral.netlify.app
+      To update later: Deploys tab > drag the folder in again. The link stays the same.
+    GitHub Pages
+      1. Sign up free at https://github.com and create a new public repository (e.g. "eye-referral").
+      2. "Add file" > "Upload files" > upload all 6 files > Commit changes.
+      3. Settings > Pages > Source: "Deploy from a branch", Branch: main, folder / (root) > Save.
+      4. After a minute the page is at https://YOUR-NAME.github.io/eye-referral/
+      To update later: upload the new index.html again (it replaces the old one).
+    On a phone: open the link and tap the green "Add to home screen" button at the top.
+      Android: the phone's own install box opens, one more tap. iPhone: Apple allows no install button, so it shows the 3 steps.
+
+  UPDATING THE LIST (edit this file, save, upload again)
+    Find the line starting  const DRAIN_DATA  : one area per line.
+      Cape Town metro:  Area|HOSPITAL         e.g.  Athlone|GSH
+        HOSPITAL is the drainage hospital: GSH Groote Schuur, VHW Victoria, NSH New Somerset, MPH Mitchells Plain,
+        HEC Heideveld (goes to Mitchells Plain), TBH Tygerberg, KDH Khayelitsha, HBH Helderberg, KBH Karl Bremer,
+        ERH Eerste River (these four go to Tygerberg), FBH False Bay (goes to Groote Schuur).
+      Outside the metro:  Area|PATHWAY|District|note     e.g.  Velddrif|NSH|West Coast|rough rule: coast side of the N7
+        PATHWAY: GSH, VHW, NSH, MPH, TBH, PAA (Paarl), WOR (Worcester), or CWD / OVD / GRD / CKD (pathway not set yet).
+        A note makes the page ask the user to check before referring.
+    Postal codes: the line starting  const DRAIN_POST_DATA , one per line:  code|Suburb   e.g.  7785|Philippi
+    Other spellings of a name: const DRAIN_ALIAS = { "Philippi": ["phillipi", "philipi"], ... }
+    Quick additions: near the end of the list section,  drainSetExtra([{"name": "Parklands", "path": "NSH"}, ...]);
+      add  {"name": "New Area", "path": "VHW"}  (path = one of the PATHWAY codes above).
+    Clinic names shown on screen: const PATH_NAME = { GSH: "Groote Schuur eye clinic", ... }
+    Change the "list updated" date in the header near the top of the page part.
+    Suggested areas arrive in the Google Sheet "Drainage app DATA", tab "New areas": choose "Approved" in "Your decision",
+    then add them here (or ask Claude to read the sheet, add the approved ones and mark them "Added").
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Eye Referral Pathway</title>
+<meta name="description" content="Which eye clinic a Western Cape address is referred to, from the Groote Schuur ophthalmology drainage list.">
+<meta name="theme-color" content="#f4f6f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121715" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Referral">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6f5c'/%3E%3Cpath d='M5 16s4-7 11-7 11 7 11 7-4 7-11 7S5 16 5 16z' fill='none' stroke='%23fff' stroke-width='2.2'/%3E%3Ccircle cx='16' cy='16' r='3.4' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f4f6f5; --surface: #ffffff; --ink: #17201d; --muted: #5b6863; --line: #d9e0dd;
+  --accent: #1f6f5c; --accent-soft: #e3f0ec; --warn: #8a5a00; --warn-soft: #fbf1dc; --err: #a3262a;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121715; --surface: #1b2220; --ink: #e6ece9; --muted: #9aa8a2; --line: #2e3835;
+  --accent: #6cc7ac; --accent-soft: #1c332c; --warn: #e8b85c; --warn-soft: #33290f; --err: #ff8a8d; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1b2220; --ink: #e6ece9; --muted: #9aa8a2; --line: #2e3835;
+  --accent: #6cc7ac; --accent-soft: #1c332c; --warn: #e8b85c; --warn-soft: #33290f; --err: #ff8a8d; color-scheme: dark }
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font);
+  padding: env(safe-area-inset-top, 0px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px) }
+main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding-block: 20px }
+header h1 { margin: 0; font-size: 1.35rem; line-height: 1.25; text-wrap: balance }
+header p { margin: 4px 0 0; color: var(--muted); font-size: .9rem }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.card h2 { margin: 0; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600 }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600 }
+textarea { font: 1.05rem/1.4 var(--font); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-height: 5.2em; resize: vertical; width: 100% }
+textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px }
+.muted { color: var(--muted); font-size: .88rem }
+button { font: 600 .95rem var(--font); border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink) }
+button:hover { border-color: var(--accent) }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.sugg { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.sugg button { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; font-weight: 400; font-size: 1rem }
+.sugg button:last-child { border-bottom: 0 }
+.sugg button span { color: var(--muted); font-size: .8rem; text-align: right }
+.answer { border-left: 4px solid var(--accent) }
+.big { font-size: 1.35rem; font-weight: 700; line-height: 1.25; color: var(--accent); text-wrap: balance }
+.answer.ask { border-left-color: var(--warn) }
+.answer.ask .big, .answer.none .big { color: var(--ink) }
+.answer.none { border-left-color: var(--line) }
+ul, ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px }
+.primary { background: var(--accent); border-color: var(--accent); color: var(--surface) }
+button:disabled { opacity: .6; cursor: default }
+input, select { font: 1rem var(--font); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; font-weight: 400 }
+input:focus, select:focus, .form textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent }
+.form { display: flex; flex-direction: column; gap: 10px; padding-top: 8px }
+.form textarea { min-height: 3.6em; font-size: 1rem }
+.form label .muted { font-weight: 400 }
+details { border-top: 1px solid var(--line); padding-top: 8px }
+details:first-of-type { border-top: 0; padding-top: 0 }
+summary { cursor: pointer; font-weight: 600; padding: 4px 0 }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px }
+.bar { position: fixed; z-index: 5; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); max-width: 616px; margin: 0 auto;
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 24px rgb(0 0 0 / .18) }
+.bar span { flex: 1; font-size: .92rem; line-height: 1.3 }
+.bar #barX { border: 0; padding: 8px 10px; color: var(--muted) }
+body:has(.bar:not([hidden])) { padding-bottom: 110px }
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); width: min(440px, calc(100vw - 32px)); padding: 16px 18px }
+dialog::backdrop { background: rgb(0 0 0 / .45) }
+dialog h2 { margin: 0 0 10px; font-size: 1.05rem }
+dialog .row { margin-top: 14px; justify-content: flex-end }
+#howToBody { display: flex; flex-direction: column; gap: 10px }
+.check { background: var(--warn-soft); border-color: transparent }
+.check h2 { color: var(--warn) }
+.err { color: var(--err) }
+footer { color: var(--muted); font-size: .82rem; display: flex; flex-direction: column; gap: 6px; padding-top: 6px }
+footer p { margin: 0 }
+[hidden] { display: none !important }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Eye clinic referral pathway</h1>
+    <p>Western Cape · from the Groote Schuur ophthalmology drainage list · list updated 23 Oct 2026</p>
+  </header>
+  <div class="card">
+    <label for="q">Patient's address or suburb
+      <textarea id="q" autocomplete="off" spellcheck="false" placeholder="e.g. 12 Lansdowne Road, Philippi, 7785 (street, suburb and postal code all help)"></textarea></label>
+    <div id="sugg" class="sugg" role="listbox" aria-label="Matching areas" hidden></div>
+    <div class="row"><button id="clear" type="button">Clear</button><span class="muted">Start typing a suburb to see matching areas.</span></div>
+  </div>
+  <div id="out" aria-live="polite"></div>
+  <div id="fb"></div>
+  <section class="card">
+    <h2>Help improve the list</h2>
+    <details id="addArea"><summary>Add a missing area</summary>
+      <form class="form" data-type="area" data-thanks="Thank you. Sent for review before it is added.">
+        <label>Area or suburb<input name="area" required maxlength="100" autocomplete="off"></label>
+        <label>Referral pathway<select name="path" required><option value="">Choose…</option></select></label>
+        <label>Town or district <span class="muted">(optional)</span><input name="district" maxlength="100" autocomplete="off"></label>
+        <label>How do you know? <span class="muted">(optional)</span><textarea name="note" rows="2" maxlength="500"></textarea></label>
+        <label>Your name <span class="muted">(optional)</span><input name="from" class="me" maxlength="100" autocomplete="name"></label>
+        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="row"><button class="primary">Send for review</button><span class="msg muted" role="status"></span></div>
+      </form></details>
+    <details id="devNote"><summary>Note to the developer</summary>
+      <form class="form" data-type="note" data-thanks="Thank you. Your note was sent.">
+        <label>Your note<textarea name="note" rows="3" required maxlength="1000"></textarea></label>
+        <label>Your name <span class="muted">(optional)</span><input name="from" class="me" maxlength="100" autocomplete="name"></label>
+        <label>Phone or email, if you'd like an answer <span class="muted">(optional)</span><input name="contact" maxlength="100" autocomplete="email"></label>
+        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="row"><button class="primary">Send note</button><span class="msg muted" role="status"></span></div>
+      </form></details>
+  </section>
+  <div class="row"><button id="install" class="primary" type="button">Add to home screen</button><button id="share" type="button">Share this app</button></div>
+  <footer>
+    <p>Addresses you type stay on this device. The app counts how many searches are done each day (only the number). Feedback you choose to send includes the area and pathway shown, never the street, house number or patient's name. "Look up on map" sends the typed address (no name) to OpenStreetMap.</p>
+    <p>Areas not on the list: ask for the suburb, or the clinic or day hospital the patient normally attends.</p>
+  </footer>
+</main>
+<div id="installBar" class="bar" hidden><span>Add this app to your home screen: one tap to open next time.</span><button id="barAdd" class="primary" type="button">Add</button><button id="barX" type="button" aria-label="Not now">✕</button></div>
+<dialog id="howTo" aria-labelledby="howToTitle"><h2 id="howToTitle">Add to home screen</h2><div id="howToBody"></div>
+  <div class="row"><button id="copyLink" type="button">Copy link</button><button id="howToClose" class="primary" type="button">Done</button></div></dialog>
+<script>
+/* drainage:start */
+const DRAIN_HOSP = { GSH: "Groote Schuur", HEC: "Heideveld EC", MPH: "Mitchells Plain", HBH: "Helderberg", KBH: "Karl Bremer", ERH: "Eerste River",
+  TBH: "Tygerberg", VHW: "Victoria (Wynberg)", NSH: "New Somerset", KDH: "Khayelitsha", FBH: "False Bay",
+  WCD: "West Coast district", CWD: "Cape Winelands district", OVD: "Overberg district", GRD: "Garden Route district", CKD: "Central Karoo district" };
+const DRAIN_PATH = { GSH: "GSH", KDH: "TBH", FBH: "GSH", VHW: "VHW", NSH: "NSH", MPH: "MPH", HEC: "MPH", HBH: "TBH", KBH: "TBH", ERH: "TBH", TBH: "TBH",
+  WCD: "WCD", CWD: "CWD", OVD: "OVD", GRD: "GRD", CKD: "CKD" };
+const PATH_NAME = { GSH: "Groote Schuur eye clinic", VHW: "Victoria Hospital eye clinic", NSH: "New Somerset eye clinic (then Groote Schuur)", MPH: "Mitchells Plain eye clinic",
+  TBH: "Tygerberg eye clinic", PAA: "Paarl eye clinic (then Tygerberg)", WOR: "Worcester eye clinic (then Tygerberg)",
+  CWD: "Cape Winelands: Paarl or Worcester, path not set", OVD: "Overberg: referral path not set yet", GRD: "Garden Route: referral path not set yet", CKD: "Central Karoo: referral path not set yet" };
+const DRAIN_DATA = `Athlone|GSH
+Athlone Industria|HEC
+Atlantis|NSH
+Austinville|ERH
+Avondale|KBH
+Balvenie|TBH
+Barcelona|HEC
+Bay View|VHW
+Beacon Valley|MPH
+Belgravia|GSH
+Belhar|TBH
+Bellair|KBH
+Bellville (N of Voortrekker)|KBH
+Bellville South|TBH
+Belmont Park|KBH
+Belthorne Estate|GSH
+Bergvliet|VHW
+Bernadino Heights|KBH
+Birgundy|KBH
+Bishop Lavis|TBH
+Bishopscourt|VHW
+Blackheath|ERH
+Blommendal|KBH
+Blouberg|NSH
+Blue Downs|ERH
+Bongweni|KDH
+Bonnie Brae|KBH
+Bonny Brook|KBH
+Bonteheuwel|NSH
+Bosonia|KBH
+Boston|KBH
+Bothasig|KBH
+Brackenfell|KBH
+Brandwag|KBH
+Brantwood|KBH
+Bridgetown|GSH
+Brooklyn|NSH
+Browns Farm|MPH
+Camelot|ERH
+Camps Bay|NSH
+Capricorn|VHW
+Century City|NSH
+Chrismar|KBH
+Churchill Estate|KBH
+Claremont|GSH
+Clarkes|TBH
+Clovelly|VHW
+Colorado Park|MPH
+Connaught Estate|TBH
+Constantia|VHW
+Cravenby|TBH
+Crawford|GSH
+Crossroads (New)|HEC
+Crossroads (Old & Lower)|MPH
+Danarand|ERH
+De Kuilen|ERH
+De Tijger|KBH
+Delft|ERH
+Dennemere|ERH
+Des Hampden|KBH
+Devon Park Village|ERH
+Diepwater|ERH
+Driftsands|ERH
+Du Noon|NSH
+Duinefontein|HEC
+Durbanville|KBH
+Eastridge|MPH
+Edenpark|KBH
+Edgemead|KBH
+Eerste River|ERH
+Eindhoven|ERH
+Elfindale|VHW
+Elim|KBH
+Elnor|TBH
+Elsies River|TBH
+Epping|TBH
+Eureka|TBH
+Europe|HEC
+Fairfield Estate|KBH
+Ferndale|KBH
+Fisantekraal|KBH
+Fish Hoek|FBH
+Florida|TBH
+Fountain Village|ERH
+Freedom Park|KDH
+Gardens|NSH
+Gatesville|GSH
+Gaylee|ERH
+Glenlily|KBH
+Goedemoed|KBH
+Goodwood|KBH
+Graceland|KDH
+Grassy Park|VHW
+Green Point (Khaya)|KDH
+Greenfield|ERH
+Greenhaven|HEC
+Greenpoint (City Bowl)|NSH
+Guguletu (All NY Zones)|HEC
+Haasendal|KBH
+Hagley|ERH
+Hanover Park|GSH
+Harare|KDH
+Harmony Village|MPH
+Hatton Estate|GSH
+Hazendal|GSH
+Heideveld|HEC
+Heinz Park (Philippi)|MPH
+High Places|ERH
+Highbury|KBH
+Highgate|ERH
+Hindle Park|ERH
+Houghton|ERH
+Hout Bay|VHW
+Ikwezi Park|KDH
+Joostenberg Vlakte|KBH
+Kaapsig|KBH
+Kalkfontein|KBH
+Kanana|HEC
+Kenilworth|VHW
+Kensington|NSH
+Kewtown|GSH
+Khayelitsha Site B|KDH
+Khayelitsha Site C|KDH
+Khayelitsha West|KDH
+Kirstenhof|VHW
+Kleinvlei|ERH
+Klipkop|TBH
+Kommetjie|VHW
+Kosovo|MPH
+Kraaifontein|KBH
+Kuils River|KBH
+Kuyasa|KDH
+Langa|NSH
+Langeberg Ridge|KBH
+Lansdowne|GSH
+Lentegeur|MPH
+Lingen|KBH
+Litha Park|KDH
+Loevenstein|KBH
+Lotus River|VHW
+Lotus River (in Gugulethu)|HEC
+Lusaka|HEC
+Macassar|HBH
+Maitland|NSH
+Makhaya|KDH
+Makhaza|KDH
+Malibu Village|ERH
+Mandalay|MPH
+Mandela Park|KDH
+Manenberg|HEC
+Marcus Garvey|MPH
+Matroosfontein|TBH
+Mau Mau|HEC
+Melkbosstrand|NSH
+Mfuleni|KDH
+Milnerton|NSH
+Mitchells Plain|MPH
+Modderdam|TBH
+Mont Clair|MPH
+Montague Gardens|NSH
+Montana|NSH
+Monte Vista|KBH
+Montrose Park|MPH
+Morgenster|MPH
+Morgenster Hoogte|KBH
+Morningstar|KBH
+Mountview|GSH
+Mowbray|GSH
+Muizenberg|VHW
+Ndabeni|GSH
+Never Neva|MPH
+New Crossroads (Nyanga)|HEC
+New Rest Squatter Camp|HEC
+Newfields|GSH
+Newlands|GSH
+Nobuhle|KDH
+Noordhoek|VHW
+Northpine|KBH
+Norwood|TBH
+NY (all zones)|HEC
+Nyanga|HEC
+Nyanga East|HEC
+Oakdale|KBH
+Observatory|GSH
+Ocean View|VHW
+Okavango Park|KBH
+Oranjezicht|NSH
+Ottery|VHW
+Paarden Island|NSH
+Palm Park|ERH
+Park Village|ERH
+Parow (N of Voortrekker)|KBH
+Parow (S of Voortrekker)|TBH
+Parowvallei|TBH
+Peerless Park|KBH
+Pelican Heights|VHW
+Pelican Park|VHW
+Penhill|ERH
+Philippi|MPH
+Phola Park|MPH
+Pinati Estate|GSH
+Pinehurst|KBH
+Pinelands|GSH
+Plattekloof|KBH
+Plumstead|VHW
+Portland|MPH
+Primrose Park|HEC
+Protea Heights|KBH
+Protea Valley|KBH
+Protea Village|KBH
+Ravensmead|TBH
+Retreat|VHW
+Richmond Estate|KBH
+Richwood|KBH
+Riverton|TBH
+Rocklands|MPH
+Rondebosch|GSH
+Rondebosch East|GSH
+Roosendal|ERH
+Rosebank|GSH
+Rotterdam|ERH
+Rugby|NSH
+Ruiterwacht|TBH
+Rustdal|ERH
+Rylands Estate|GSH
+Saalberau|TBH
+Salt River|GSH
+Samora Machel|MPH
+San Remo|VHW
+Sarepta|KBH
+Scottsdene|KBH
+Sea Point|NSH
+Sherwood Park|HEC
+Silver City|MPH
+Silver Oaks|KBH
+Silvermine|VHW
+Silversands|ERH
+Silverstream|HEC
+Silvertown|KDH
+Simons Town|VHW
+Siyahlala|MPH
+Somerset West|HBH
+Soneike|KBH
+Sonkring|KBH
+Sonnendal|KBH
+Sonstraal Heights|KBH
+Springbok Park|KBH
+St Dumas|KBH
+Steenberg|VHW
+Stellenrust|ERH
+Strandfontein|VHW
+Stratford Green|ERH
+Summergreens|NSH
+Sunbird Park|ERH
+Sunnydale|VHW
+Surrey Estate|HEC
+Sweet Home Farm|MPH
+Tableview|NSH
+Tafelsig|MPH
+Tambo Square|HEC
+Tambo Village|HEC
+Tembani|KDH
+The Hague|ERH
+The Leagues|MPH
+The Range|TBH
+The Wines|ERH
+Thornton|NSH
+Tokai|VHW
+Tuscany Glen|ERH
+Tygerdal|KBH
+Uitsig|TBH
+Valhalla|TBH
+Vanguard Estate|HEC
+Vasco Estate|KBH
+Voorbrug|ERH
+Vredehoek|NSH
+Vredenberg|KBH
+Wallacedene|KBH
+Wavecrest|VHW
+Welcome Estate|HEC
+Welgemoed|KBH
+Weltevreden Valley|MPH
+Wesbank|ERH
+Westbeach|NSH
+Westgate|MPH
+Westlake|VHW
+Westridge|MPH
+Windermere|NSH
+Windsor Park|KBH
+Woodlands|MPH
+Woodstock|GSH
+Wynberg|VHW
+Youngsfield|VHW
+Ysterplaat|NSH
+Zeekoevlei|VHW
+Zevendal|KBH
+Zevenwacht|KBH
+Zonnendal|KBH
+Zoo Park|KBH
+Khayelitsha|KDH
+Gugulethu|HEC
+Malmesbury|PAA|West Coast|
+Piketberg|PAA|West Coast|
+Vredendal|PAA|West Coast|
+Velddrif|NSH|West Coast|rough rule: coast side of the N7
+Vredenburg|NSH|West Coast|rough rule: coast side of the N7
+Saldanha|NSH|West Coast|rough rule: coast side of the N7
+Langebaan|NSH|West Coast|rough rule: coast side of the N7
+Paternoster|NSH|West Coast|rough rule: coast side of the N7
+St Helena Bay|NSH|West Coast|rough rule: coast side of the N7
+Hopefield|NSH|West Coast|rough rule: coast side of the N7
+Darling|NSH|West Coast|rough rule: coast side of the N7
+Yzerfontein|NSH|West Coast|rough rule: coast side of the N7
+Lamberts Bay|NSH|West Coast|rough rule: coast side of the N7
+Elands Bay|NSH|West Coast|rough rule: coast side of the N7
+Graafwater|NSH|West Coast|rough rule: coast side of the N7
+Aurora|NSH|West Coast|rough rule: coast side of the N7
+Moorreesburg|PAA|West Coast|rough rule: inland of the N7
+Porterville|PAA|West Coast|rough rule: inland of the N7
+Riebeek Kasteel|PAA|West Coast|rough rule: inland of the N7
+Riebeek West|PAA|West Coast|rough rule: inland of the N7
+Koringberg|PAA|West Coast|rough rule: inland of the N7
+Citrusdal|PAA|West Coast|rough rule: inland of the N7
+Clanwilliam|PAA|West Coast|rough rule: inland of the N7
+Abbotsdale|PAA|West Coast|rough rule: inland of the N7
+Chatsworth|PAA|West Coast|rough rule: inland of the N7
+Kalbaskraal|PAA|West Coast|rough rule: inland of the N7
+Lutzville|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
+Ebenhaeser|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
+Doringbaai|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
+Klawer|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
+Vanrhynsdorp|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
+West Coast|NSH|West Coast|rough rule: coast side of the N7
+West Coast|PAA|West Coast|rough rule: inland of the N7
+Stellenbosch|PAA|Cape Winelands|
+Franschhoek|PAA|Cape Winelands|
+Paarl|PAA|Cape Winelands|
+Wellington|PAA|Cape Winelands|
+Pniel|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Kayamandi|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Cloetesville|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Idas Valley|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Klapmuts|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Mbekweni|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Saron|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Gouda|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Worcester|WOR|Cape Winelands|
+Zwelethemba|WOR|Cape Winelands|Worcester's own area (not confirmed)
+Avian Park|WOR|Cape Winelands|Worcester's own area (not confirmed)
+Rawsonville|WOR|Cape Winelands|Worcester's own area (not confirmed)
+De Doorns|WOR|Cape Winelands|Worcester's own area (not confirmed)
+Touws River|WOR|Cape Winelands|Worcester's own area (not confirmed)
+Robertson|WOR|Cape Winelands|probably Worcester: exact drainage not confirmed
+Montagu|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
+Bonnievale|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
+McGregor|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
+Ashton|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
+Ceres|CWD|Cape Winelands|
+Tulbagh|CWD|Cape Winelands|
+Wolseley|CWD|Cape Winelands|
+Prince Alfred Hamlet|CWD|Cape Winelands|
+Op die Berg|CWD|Cape Winelands|
+Nduli|CWD|Cape Winelands|
+Cape Winelands|CWD|Cape Winelands|
+Caledon|WOR|Overberg|probably Worcester: exact drainage not confirmed
+Hermanus|OVD|Overberg|
+Grabouw|OVD|Overberg|
+Bredasdorp|OVD|Overberg|
+Swellendam|OVD|Overberg|
+Villiersdorp|OVD|Overberg|
+Botrivier|OVD|Overberg|
+Bot River|OVD|Overberg|
+Kleinmond|OVD|Overberg|
+Gansbaai|OVD|Overberg|
+Napier|OVD|Overberg|
+Riviersonderend|OVD|Overberg|
+Struisbaai|OVD|Overberg|
+Stanford|OVD|Overberg|
+Barrydale|OVD|Overberg|
+Greyton|OVD|Overberg|
+Genadendal|OVD|Overberg|
+Bettys Bay|OVD|Overberg|
+Pringle Bay|OVD|Overberg|
+Elgin|OVD|Overberg|
+Arniston|OVD|Overberg|
+Suurbraak|OVD|Overberg|
+Zwelihle|OVD|Overberg|
+Hawston|OVD|Overberg|
+Onrus|OVD|Overberg|
+Sandbaai|OVD|Overberg|
+Pearly Beach|OVD|Overberg|
+Overberg|OVD|Overberg|
+George|GRD|Garden Route|
+Knysna|GRD|Garden Route|
+Mossel Bay|GRD|Garden Route|
+Oudtshoorn|GRD|Garden Route|
+Plettenberg Bay|GRD|Garden Route|
+Riversdale|GRD|Garden Route|
+Heidelberg|GRD|Garden Route|
+Stilbaai|GRD|Garden Route|
+Still Bay|GRD|Garden Route|
+Albertinia|GRD|Garden Route|
+Wilderness|GRD|Garden Route|
+Sedgefield|GRD|Garden Route|
+Calitzdorp|GRD|Garden Route|
+Ladismith|GRD|Garden Route|
+Uniondale|GRD|Garden Route|
+Great Brak River|GRD|Garden Route|
+Hartenbos|GRD|Garden Route|
+Haarlem|GRD|Garden Route|
+Dysselsdorp|GRD|Garden Route|
+De Rust|GRD|Garden Route|
+Thembalethu|GRD|Garden Route|
+Pacaltsdorp|GRD|Garden Route|
+Kwanokuthula|GRD|Garden Route|
+Kranshoek|GRD|Garden Route|
+Garden Route|GRD|Garden Route|
+Beaufort West|CKD|Central Karoo|
+Laingsburg|CKD|Central Karoo|
+Prince Albert|CKD|Central Karoo|
+Murraysburg|CKD|Central Karoo|
+Merweville|CKD|Central Karoo|
+Leeu Gamka|CKD|Central Karoo|
+Nelspoort|CKD|Central Karoo|
+Matjiesfontein|CKD|Central Karoo|
+Central Karoo|CKD|Central Karoo|`;
+// Postal codes (street and PO box) of Cape Town suburbs, from Wikipedia's "List of Cape Town suburbs" (read 12 Oct 2026).
+// Suburb names are written as on the drainage list where they match one.
+const DRAIN_POST_DATA = `8005|Bakoven
+8005|Bantry Bay
+8005|Camps Bay
+8040|Camps Bay
+8005|Clifton
+8005|Fresnaye
+8005|Greenpoint (City Bowl)
+8051|Greenpoint (City Bowl)
+7806|Llandudno
+8005|Mouille Point
+8001|Mouille Point
+8005|Sea Point
+8060|Sea Point
+8005|Three Anchor Bay
+8001|V&A Waterfront
+7349|Atlantis
+7441|Bloubergstrand
+7405|Brooklyn
+7441|Century City
+7441|Du Noon
+7441|Duynefontein
+7441|Joe Slovo Park
+7441|Killarney Gardens
+7349|Mamre
+7441|Melkbosstrand
+7441|Milnerton
+7435|Milnerton
+7441|Montague Gardens
+7441|Paarden Island
+7441|Parklands
+7405|Rugby
+7441|Sunningdale
+7441|Summergreens
+7441|Tableview
+7439|Tableview
+7405|Ysterplaat
+7764|Athlone
+7760|Athlone
+7493|Belhar
+7490|Bishop Lavis
+7764|Bonteheuwel
+7780|Crawford
+7770|Crawford
+7755|Crossroads
+7100|Delft
+7945|Elfindale
+7490|Elsies River
+7941|Grassy Park
+7800|Grassy Park
+7750|Gugulethu
+7780|Hanover Park
+7764|Heideveld
+7490|Joe Slovo
+7490|Kalksteenfontein
+7780|Kenwyn
+7784|Khayelitsha
+7783|Khayelitsha
+7455|Langa
+7456|Langa
+7780|Lansdowne
+7779|Lansdowne
+7945|Lavender Hill
+7941|Lotus River
+7805|Lotus River
+7764|Manenberg
+7490|Matroosfontein
+7785|Mitchells Plain
+7789|Mitchells Plain
+7100|Mfuleni
+7750|Nyanga
+7755|Nyanga
+7800|Ottery
+7808|Ottery
+7941|Pelican Park
+7750|Philippi
+7945|Retreat
+7965|Retreat
+7780|Rondebosch East
+7764|Rylands Estate
+7880|Southfield
+7945|Steenberg
+7798|Strandfontein
+7490|Valhalla Park
+7945|Vrygrond
+7780|Wetton
+7941|Zeekoevlei
+7800|Zeekoevlei
+8001|Bo-Kaap
+8001|Cape Town CBD
+8000|Cape Town CBD
+8001|Devils Peak Estate
+8001|De Waterkant
+8001|Foreshore
+8001|Gardens
+8001|Higgovale
+8001|Oranjezicht
+7925|Salt River
+8001|Schotsche Kloof
+8001|Tamboerskloof
+8001|University Estate
+8001|Vredehoek
+7925|Walmer Estate
+7925|Woodstock
+7925|Zonnebloem
+7110|Croydon
+7100|Eerste River
+7103|Eerste River
+7131|Faure
+7130|Firgrove
+7110|Firgrove
+7140|Gordons Bay
+7130|Macassar
+7134|Macassar
+7130|Sir Lowrys Pass Village
+7133|Sir Lowrys Pass Village
+7130|Somerset West
+7129|Somerset West
+7140|Strand
+7139|Strand
+7405|Acacia Park
+7530|Bellville
+7535|Bellville
+7530|Bellville South
+7579|Blackheath
+7580|Blackheath
+7100|Blue Downs
+7105|Blue Downs
+7441|Bothasig
+7560|Brackenfell
+7550|Durbanville
+7551|Durbanville
+7441|Edgemead
+7460|Epping
+7550|Fisantekraal
+7460|Goodwood
+7459|Goodwood
+7570|Joostenberg Vlakte
+7405|Kensington
+7570|Kraaifontein
+7572|Kraaifontein
+7580|Kuils River
+7579|Kuils River
+7530|Loevenstein
+7405|Maitland
+7460|Monte Vista
+7463|Monte Vista
+7405|Ndabeni
+7500|Norwood
+7500|Panorama
+7506|Panorama
+7500|Parow
+7499|Parow
+7304|Philadelphia
+7405|Pinelands
+7430|Pinelands
+7500|Plattekloof
+7493|Ravensmead
+7441|Richwood
+7570|Scottsdene
+7550|Sonnestraal
+7460|Thornton
+7505|Tygerberg
+7530|Tyger Valley
+7500|Welgelegen
+7530|Welgemoed
+7945|Bergvliet
+7708|Bishopscourt
+7708|Claremont
+7735|Claremont
+7806|Constantia
+7848|Constantia
+7945|Diep River
+7945|Dennendal
+7945|Dreyersdal
+7945|Heathfield
+7708|Kenilworth
+7745|Kenilworth
+7945|Kirstenhof
+7945|Marina da Gama
+7945|Meadowridge
+7700|Mowbray
+7705|Mowbray
+7945|Muizenberg
+7950|Muizenberg
+7700|Newlands
+7725|Newlands
+7925|Observatory
+7935|Observatory
+7800|Plumstead
+7801|Plumstead
+7700|Rondebosch
+7701|Rondebosch
+7700|Rosebank
+7945|Tokai
+7966|Tokai
+7945|Westlake
+7800|Wynberg
+7824|Wynberg
+7975|Capri Village
+7975|Clovelly
+7975|Da Gama Park
+7975|Fish Hoek
+7974|Fish Hoek
+7975|Glencairn
+7806|Hout Bay
+7872|Hout Bay
+7806|Imizamo Yethu
+7975|Kalk Bay
+7990|Kalk Bay
+7975|Kommetjie
+7976|Kommetjie
+7945|Lakeside
+7946|Lakeside
+7975|Masiphumelele
+7975|Noordhoek
+7979|Noordhoek
+7975|Ocean View
+7975|Scarborough
+7975|Simons Town
+7995|Simons Town
+7945|St James
+7946|St James
+7975|Sunnydale
+7975|Sun Valley
+7985|Sun Valley`;
+let DRAIN_POST = null;
+const drainPost = () => DRAIN_POST || (DRAIN_POST = DRAIN_POST_DATA.split("\n").reduce((m, l) => { const [c, n] = l.split("|"); (m.get(c) || m.set(c, []).get(c)).push(n); return m; }, new Map()));
+// other spellings: the wall poster, referral letters, addresses
+const DRAIN_ALIAS = { "Lentegeur": ["lenteguer", "lentegeuer"], "The Leagues": ["the leugues"], "Philippi": ["phillipi", "phillippi", "philipi"],
+  "Mitchells Plain": ["mitchell s plain", "m plain"], "New Rest Squatter Camp": ["new rest"], "Heinz Park (Philippi)": ["heinz park"], "Khayelitsha": ["khayalitsha", "khayelitsa"],
+  "Never Neva": ["never never"], "Sea Point": ["seapoint"], "Primrose Park": ["primose park"], "Saalberau": ["salberau"], "Bonteheuwel": ["bonteheuvel"],
+  "Manenberg": ["manenburg"], "Hanover Park": ["hannover park"], "Velddrif": ["veldrif"], "Samora Machel": ["samora"], "Bettys Bay": ["betty s bay"], "Plettenberg Bay": ["plett"] };
+const DRAIN_STREET = new Set("street st str road rd avenue ave av crescent cres cr close cl drive dr way lane ln circle cir court ct walk place pl boulevard blvd highway hwy terrace tce grove mews link".split(" "));
+// address words that are never a place name (kept out of the spelling-mistake match)
+const DRAIN_STOP = new Set("cape town western south africa rsa wc unit flat house no number block section ext extension phase erf the and of in at near behind next to".split(" "));
+const drainNorm = t => String(t || "").toLowerCase().replace(/[’'`]/g, "").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
+const drainBase = a => a.replace(/\s*\(.*\)\s*/g, " ").trim();
+let DRAIN_IDX = null, DRAIN_EXTRA = [];   // DRAIN_EXTRA: [{ name, path }] Casper found out and saved in the app
+function drainSetExtra(list) { DRAIN_EXTRA = list; DRAIN_IDX = null; }
+function drainIndex() {
+  if (DRAIN_IDX) return DRAIN_IDX;
+  const areas = DRAIN_DATA.split("\n").map(l => { const [area, code, district, note] = l.split("|");
+    return district ? { area, code: "", path: code, district, note: note || "", base: drainNorm(drainBase(area)) } : { area, code, path: DRAIN_PATH[code], base: drainNorm(drainBase(area)) }; })
+    .concat(DRAIN_EXTRA.filter(x => PATH_NAME[x.path]).map(x => ({ area: x.name, code: "", path: x.path, district: "Added by you", note: "", base: drainNorm(drainBase(x.name)) })));
+  const byKey = new Map(), keys = [];
+  areas.forEach(a => [a.base, ...(DRAIN_ALIAS[a.area] || [])].forEach(v => {
+    const k = drainNorm(v).replace(/ /g, ""); if (!k) return;
+    if (!byKey.has(k)) { byKey.set(k, []); keys.push(k); }
+    if (!byKey.get(k).includes(a)) byKey.get(k).push(a);
+  }));
+  return (DRAIN_IDX = { areas, byKey, keys });
+}
+function lev(a, b) {
+  const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] === b[j - 1] ? 0 : 1)); p = t; } }
+  return d[b.length];
+}
+// the nearest names to a word (same first letter); `slack` widens the allowed spelling distance
+function drainNear(w, slack) {
+  const X = drainIndex(), out = [];
+  for (const k of X.keys) {
+    if (k[0] !== w[0] || k.length < 5 || Math.abs(k.length - w.length) > 2 + slack) continue;
+    const d = lev(w, k); if (d && d <= (k.length >= 8 ? 2 : 1) + slack) out.push({ k, d });
+  }
+  return out.sort((a, b) => a.d - b.d);
+}
+// → { paths: [{ path, areas }], asks: [text], notes: [text], guesses: [area], streetOnly }
+function drainLookup(address) {
+  const X = drainIndex(), toks = drainNorm(address).split(" ").filter(Boolean), hits = [];
+  const word = (i, n) => toks.slice(i, i + n), plain = ws => ws.every(t => !/\d/.test(t) && !DRAIN_STOP.has(t) && !DRAIN_STREET.has(t));
+  for (let i = 0; i < toks.length; i++) for (let n = 1; n <= 4 && i + n <= toks.length; n++) {
+    const said = word(i, n).join(" "), key = word(i, n).join(""), list = X.byKey.get(key);
+    const street = DRAIN_STREET.has(toks[i + n] || "");
+    if (list) { hits.push({ i, j: i + n, list, street, said, d: 0 }); continue; }
+    if (n <= 3 && key.length >= 5 && plain(word(i, n))) {   // a spelling mistake ("Hanovr Park", "Mitchells plane")
+      const near = drainNear(key, 0);
+      if (near.length && (near.length === 1 || near[1].d > near[0].d)) hits.push({ i, j: i + n, list: X.byKey.get(near[0].k), street, said, d: near[0].d });
+    }
+  }
+  const ny = toks.findIndex((t, i) => /^ny\d*$/.test(t) && (/\d/.test(t) || /^\d+$/.test(toks[i + 1] || "")));   // "NY 74": Gugulethu's NY zones
+  if (ny >= 0) hits.push({ i: ny, j: ny + 1, list: X.areas.filter(a => a.area === "NY (all zones)"), street: false, said: toks[ny], d: 0 });
+  // exact names before spelling matches, then the longest ("Rondebosch East" over "Rondebosch")
+  const used = new Set(), keep = [];
+  hits.sort((a, b) => (a.d > 0) - (b.d > 0) || (b.j - b.i) - (a.j - a.i) || a.d - b.d || a.i - b.i).forEach(h => {
+    for (let k = h.i; k < h.j; k++) if (used.has(k)) return;
+    for (let k = h.i; k < h.j; k++) used.add(k); keep.push(h);
+  });
+  const firm = keep.filter(h => !h.street), streetHits = keep.filter(h => h.street), streetOnly = !firm.length && streetHits.length > 0;
+  const use = firm.length ? firm : streetHits, asks = [], notes = [], areas = [];
+  use.forEach(h => {
+    h.list.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path)) areas.push({ ...a, said: h.said }); });
+    if (h.d) notes.push(`Read "${h.said}" as ${h.list.map(a => a.area).join(" / ")}.`);
+    const ps = [...new Set(h.list.map(a => a.path))];
+    if (ps.length > 1) asks.push(`"${h.said}" can be ${h.list.map(a => `${a.area} (${PATH_NAME[a.path]})`).join(" or ")}. Ask which part they live in.`);
+  });
+  // postal codes: confirm the suburb, find it when only the code is given, or flag a code that belongs elsewhere
+  const byName = n => { const exact = X.areas.filter(a => a.area.toLowerCase() === n.toLowerCase()); return exact.length ? exact : X.byKey.get(drainNorm(drainBase(n)).replace(/ /g, "")) || []; };
+  [...new Set(toks.filter(t => drainPost().has(t)))].forEach(code => {
+    const subs = drainPost().get(code), cand = subs.flatMap(byName), list = subs.join(", ");
+    if (areas.length && areas.some(a => cand.includes(X.areas.find(b => b.area === a.area && b.path === a.path)))) { notes.push(`Postal code ${code} matches.`); return; }
+    // a code from a neighbouring suburb that goes to the same clinic changes nothing
+    if (areas.length && cand.length && cand.every(c => areas.some(a => a.path === c.path))) { notes.push(`Postal code ${code} is ${list}: same clinic.`); return; }
+    if (areas.length) asks.unshift(`Postal code ${code} is ${list}, not ${[...new Set(areas.map(a => a.area))].join(" / ")}. Ask which is right.`);
+    else if (!cand.length) { notes.push(`Postal code ${code} is ${list}, which is not on the drainage list.`); return; }
+    else notes.push(`Found from postal code ${code} only (${list}).`);
+    cand.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path)) areas.push({ ...a, said: code, via: code }); });
+    if (!asks.length && new Set(cand.map(a => a.path)).size > 1) asks.unshift(`Postal code ${code} covers ${list}, which go to different clinics. Ask the suburb.`);
+  });
+  const paths = [...new Set(areas.map(a => a.path))].map(path => ({ path, areas: areas.filter(a => a.path === path) }));
+  areas.forEach(a => { if (a.note) asks.push(`${a.area}: ${a.note}. Check before referring.`); else if (a.district && !PATH_NAME[a.path].includes("eye clinic")) asks.push(`${a.area} (${a.district}): no referral path set up yet. Check before referring.`); });
+  if (streetOnly) asks.unshift(`Only a street name was recognised (${streetHits.map(h => h.said).join(", ")}). Streets can run through more than one area. Ask for the suburb.`);
+  else if (use.filter(h => new Set(h.list.map(a => a.path)).size === 1).map(h => h.list[0].path).filter((v, i, a) => a.indexOf(v) === i).length > 1)
+    asks.unshift("The address names areas with different pathways. Ask which suburb they live in.");
+  // a longer name that goes elsewhere ("Athlone" vs "Athlone Industria", "Morgenster" vs "Morgenster Hoogte")
+  areas.forEach(a => X.areas.forEach(b => {
+    if (b.path !== a.path && b.base.startsWith(a.base + " ") && !areas.some(x => x.area === b.area)) asks.push(`If they live in ${b.area}, the pathway is ${PATH_NAME[b.path]} instead. Check.`);
+  }));
+  let guesses = [];
+  if (!areas.length) {   // nothing recognised: wider spelling search, offered as "did you mean"
+    const seen = new Map();
+    for (let i = 0; i < toks.length; i++) for (let n = 1; n <= 3 && i + n <= toks.length; n++) {
+      const w = word(i, n).join(""); if (w.length < 5 || !plain(word(i, n))) continue;
+      drainNear(w, 1).forEach(({ k, d }) => X.byKey.get(k).forEach(a => { if (!seen.has(a.area) || seen.get(a.area) > d) seen.set(a.area, d); }));
+    }
+    guesses = [...seen].sort((a, b) => a[1] - b[1]).slice(0, 4).map(([n]) => X.areas.find(a => a.area === n));
+  }
+  return { paths, asks, notes, guesses, streetOnly };
+}
+// the place words of an address, for the "find out later" list: no house numbers, streets or "Cape Town"
+function drainPlaceWords(text) {
+  const t = drainNorm(text).split(" ").filter(Boolean), out = [];
+  t.forEach((w, i) => { if (/\d/.test(w) || DRAIN_STOP.has(w) || DRAIN_STREET.has(w) || DRAIN_STREET.has(t[i + 1] || "")) return; out.push(w); });
+  return out.map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
+}
+// The live drop-down: areas whose name starts with the word(s) being typed (the last part after a comma), names that
+// start with them first, then names with a later word that does ("plain" → Mitchells Plain). → { k, list: [area] }
+function drainSuggest(text) {
+  const seg = String(text || "").split(/[,\n]/).pop(), toks = drainNorm(seg).split(" ").filter(t => t && !/\d/.test(t));
+  if (!toks.length) return { k: 0, list: [] };
+  const X = drainIndex(), names = [...new Map(X.areas.map(a => [a.area, a])).values()];
+  const boundary = ws => { const last = ws[ws.length - 1]; if (DRAIN_STREET.has(last) || DRAIN_STOP.has(last)) return true;
+    for (let n = 1; n <= Math.min(4, ws.length); n++) if (X.byKey.has(ws.slice(-n).join(""))) return true; return false; };
+  for (let k = Math.min(3, toks.length); k >= 1; k--) {   // "mitchells pl" before "pl"
+    // the typed name starts after a street word or a whole area name ("12 Main Road muiz", "Tafelsig mitch"),
+    // never inside a name: "allenby es" is not "es"
+    if (k < toks.length && !boundary(toks.slice(0, toks.length - k))) continue;
+    const frag = toks.slice(-k).join(" "); if (frag.replace(/ /g, "").length < 2) continue;
+    const base = a => drainNorm(drainBase(a.area)), starts = names.filter(a => base(a).startsWith(frag));
+    const inner = frag.length < 3 ? [] : names.filter(a => !base(a).startsWith(frag) && base(a).split(" ").slice(1).some((w, i, ws) => ws.slice(i).join(" ").startsWith(frag)));
+    const list = [...starts.sort((a, b) => a.area.localeCompare(b.area)), ...inner.sort((a, b) => a.area.localeCompare(b.area))];
+    if (list.length) return { k, list: list.slice(0, 8) };
+  }
+  return { k: 0, list: [] };
+}
+drainSetExtra([{"name": "Allenby Estate", "path": "VHW"}, {"name": "Diep River", "path": "VHW"}, {"name": "Meadowridge", "path": "VHW"}, {"name": "Parklands", "path": "NSH"}, {"name": "Phoenix", "path": "NSH"}]);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function render() {
+  const txt = $("q").value, el = $("out");
+  if (!txt.trim()) { el.innerHTML = ""; renderFb(null); countSearch(null); return; }
+  const R = drainLookup(txt);
+  renderFb(R); countSearch(R, txt);
+  const hosp = a => a.district === "Added by you" ? "added to the list" : a.district ? `${esc(a.district)} district${a.note ? ` (${esc(a.note)})` : ""}` : `${esc(DRAIN_HOSP[a.code])} (${a.code})`;
+  const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
+  let h;
+  if (!R.paths.length) h = `<div class="card answer none"><h2>Referral pathway</h2><span class="big">Area not found</span><span>Ask the patient for their suburb, or the clinic or day hospital they normally attend.</span>`
+    + (R.guesses.length ? `<span>Did you mean: ${R.guesses.map(a => `<b>${esc(a.area)}</b> (${esc(PATH_NAME[a.path])})`).join(" · ")}?</span>` : "");
+  else if (R.paths.length === 1) h = `<div class="card answer${R.asks.length ? " ask" : ""}"><h2>Referral pathway</h2><span class="big">${esc(PATH_NAME[R.paths[0].path])}</span>${R.paths[0].areas.map(a => `<span>${areaLine(a)}</span>`).join("")}`;
+  else h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Ask the suburb: possible pathways</span><ul>${R.paths.map(P => `<li><b>${esc(PATH_NAME[P.path])}</b>: ${P.areas.map(areaLine).join("; ")}</li>`).join("")}</ul>`;
+  if (R.notes.length) h += `<span class="muted">${esc(R.notes.join(" "))}</span>`;
+  h += `</div>`;
+  if (R.asks.length) h += `<div class="card check"><h2>Ask or check</h2><ul>${R.asks.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>`;
+  const unset = R.paths.filter(P => !PATH_NAME[P.path].includes("eye clinic"));
+  if (!R.paths.length || R.streetOnly || R.asks.length || unset.length) h += `<div class="card" id="mapBox">${mapHtml(txt)}</div>`;
+  el.innerHTML = h;
+}
+
+/* ---------- map lookup (OpenStreetMap Nominatim, free, no key): only on a tap, the address as typed, South Africa only;
+   Western Cape results only. Each place found goes through the drainage list, which still decides the pathway. ---------- */
+const M = { text: "", busy: false, res: null, err: null };
+async function mapLookup(text) {
+  const q = new URLSearchParams({ q: text.replace(/\s+/g, " ").trim(), format: "jsonv2", addressdetails: "1", countrycodes: "za", limit: "8", viewbox: "17.5,-30.5,24.5,-35.0", "accept-language": "en" });
+  const r = await fetch("https://nominatim.openstreetmap.org/search?" + q);
+  if (!r.ok) throw new Error(r.status === 429 ? "OpenStreetMap is busy. Wait a minute and try again." : `OpenStreetMap answered ${r.status}.`);
+  const all = (await r.json()).map(x => x.address || {});
+  const wc = all.filter(a => /western cape/i.test(a.state || "")), seen = new Set(), places = [];
+  wc.forEach(a => {
+    if (/\bward\b/i.test(a.city_district || "")) delete a.city_district;   // "Cape Town Ward 22" is not a place
+    const sub = a.suburb || a.neighbourhood || a.quarter || a.village || a.hamlet || "", town = a.town || a.city || a.municipality || "";
+    const key = [sub, town, a.postcode].join("|"); if (seen.has(key)) return; seen.add(key);
+    places.push({ label: [a.road, sub, a.city_district, town, a.postcode].filter((v, i, x) => v && x.indexOf(v) === i).join(", "), R: drainLookup([sub, a.city_district, town, a.postcode].filter(Boolean).join(", ")) });
+  });
+  const outside = wc.length ? [] : all.map(a => [a.suburb, a.town || a.city, a.state].filter(Boolean).join(", ")).filter(Boolean).slice(0, 4);
+  return { places, outside };
+}
+function mapHtml(txt) {
+  let h = `<h2>Map lookup</h2>`;
+  if (M.text !== txt || (!M.res && !M.err && !M.busy)) return h + `<div class="row"><button id="mapGo" type="button">Look up on map</button><span class="muted">Sends this address (no name) to OpenStreetMap. Western Cape only.</span></div>`;
+  if (M.busy) return h + `<span class="muted">Looking it up on the map…</span>`;
+  if (M.err) return h + `<span class="err">${esc(M.err)}</span><div class="row"><button id="mapGo" type="button">Try again</button></div>`;
+  const { places, outside } = M.res;
+  if (!places.length) return h + (outside.length ? `<span>Not found in the Western Cape. Outside the Western Cape: ${esc(outside.join(" · "))}</span>` : `<span class="muted">The map could not find this address either. Ask for the suburb.</span>`);
+  const paths = [...new Set(places.flatMap(x => x.R.paths.map(P => P.path)))];
+  h += paths.length === 1 && places.every(x => x.R.paths.length === 1) ? `<span class="big">Map suggests: ${esc(PATH_NAME[paths[0]])}</span>`
+    : `<span class="big">The map found ${places.length === 1 ? "this place" : `${places.length} places`}: ask which</span>`;
+  h += `<ul>${places.map(x => `<li>${esc(x.label)} → ${x.R.paths.length ? x.R.paths.map(P => `<b>${esc(PATH_NAME[P.path])}</b>`).join(" or ") : "not on the drainage list"}</li>`).join("")}</ul>`;
+  return h + `<span class="muted">Map suggestion: check with the patient. The drainage list decides the pathway.</span>`;
+}
+async function mapGo() {
+  const txt = $("q").value;
+  if (M.busy || !txt.trim()) return;
+  Object.assign(M, { text: txt, busy: true, res: null, err: null }); render();
+  try { M.res = await mapLookup(txt); } catch (e) { M.err = e instanceof TypeError ? "Couldn't reach OpenStreetMap. Check the internet connection." : e.message; }
+  M.busy = false; if ($("q").value === txt) render();
+}
+$("out").addEventListener("click", ev => { if (ev.target.id === "mapGo") mapGo(); });
+
+/* ---------- live drop-down of matching areas ---------- */
+let S = { k: 0, list: [] };
+function renderSugg() {
+  const box = $("sugg"), txt = $("q").value;
+  S = drainSuggest(txt);
+  const exact = S.list.length === 1 && drainNorm(S.list[0].area) === drainNorm(txt.split(/[,\n]/).pop());
+  if (!S.list.length || exact || document.activeElement !== $("q")) { box.hidden = true; box.innerHTML = ""; return; }
+  box.innerHTML = S.list.map((a, i) => `<button type="button" data-i="${i}" role="option"><b>${esc(a.area)}</b><span>${esc(PATH_NAME[a.path] || "")}</span></button>`).join("");
+  box.hidden = false;
+}
+$("q").addEventListener("input", () => { render(); renderSugg(); });
+$("q").addEventListener("focus", renderSugg);
+$("q").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("q")) $("sugg").hidden = true; }, 200));
+$("sugg").addEventListener("pointerdown", ev => ev.preventDefault());   // keep the keyboard up
+$("sugg").addEventListener("click", ev => {   // the tapped area replaces the word(s) being typed
+  const b = ev.target.closest("[data-i]"); if (!b) return;
+  const a = S.list[+b.dataset.i], el = $("q"), v = el.value, cut = Math.max(v.lastIndexOf(","), v.lastIndexOf("\n")) + 1;
+  const words = v.slice(cut).replace(/\s+$/, "").split(/(\s+)/), keep = [];
+  let drop = S.k;
+  for (let i = words.length - 1; i >= 0; i--) { if (drop > 0 && words[i].trim() && !/\d/.test(words[i])) { drop--; continue; } if (drop === 0 || !words[i].trim() || /\d/.test(words[i])) keep.unshift(words[i]); }
+  el.value = v.slice(0, cut) + (keep.join("").trim() ? (cut ? " " : "") + keep.join("").trim() + " " : (cut ? " " : "")) + a.area;
+  $("sugg").hidden = true; render(); el.focus(); el.setSelectionRange(el.value.length, el.value.length);
+});
+$("clear").addEventListener("click", () => { $("q").value = ""; render(); $("q").focus(); });
+
+/* ---------- feedback, new areas, notes and daily search counts → the developer's Google Sheet (set up with apps-script.gs).
+   Only area names and the pathway shown are sent: never the street, house number or patient's name. ---------- */
+const FEEDBACK_URL = "";   // the Web app URL from apps-script.gs (ends in /exec); empty = feedback switched off
+const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k) || ""; localStorage.setItem(k, v); } catch { } return ""; };
+async function send(data) {
+  if (!FEEDBACK_URL) throw new Error("Feedback isn't switched on yet.");
+  let r;
+  try { r = await fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(data) }); }   // a plain-text body: no CORS preflight
+  catch { throw new Error("Couldn't send. Check the internet connection and try again."); }
+  if (!r.ok || !(await r.json().catch(() => ({}))).ok) throw new Error("Couldn't save it. Please try again later.");
+}
+const CLINIC_OPTS = Object.entries(PATH_NAME).filter(([, n]) => n.includes("eye clinic")).map(([c, n]) => `<option value="${c}: ${esc(n)}">${esc(n)}</option>`).join("");
+document.querySelectorAll("select[name=path]").forEach(s => s.insertAdjacentHTML("beforeend", CLINIC_OPTS + `<option>Not sure</option>`));
+const fillNames = () => document.querySelectorAll("input.me").forEach(i => { if (!i.value) i.value = store("name"); });
+fillNames();
+document.addEventListener("submit", async ev => {
+  const f = ev.target; if (!f.dataset.type) return;
+  ev.preventDefault();
+  const msg = f.querySelector(".msg"), btn = f.querySelector("button"), data = { type: f.dataset.type, ...Object.fromEntries(new FormData(f)) };
+  if (data.from) store("name", data.from);
+  btn.disabled = true; msg.className = "msg muted"; msg.textContent = "Sending…";
+  try { await send(data); f.reset(); fillNames(); msg.textContent = f.dataset.thanks; }
+  catch (e) { msg.className = "msg err"; msg.textContent = e.message; }   // the form keeps what was typed
+  btn.disabled = false;
+});
+
+// "Was this right?" under each answer; redrawn only when the answer changes, so a half-written flag survives typing
+let fbKey = "", FB = {};
+function renderFb(R) {
+  const key = !R ? "" : R.paths.length ? R.paths.map(P => P.path + ":" + P.areas.map(a => a.area).join("|")).join() : "?";
+  if (key === fbKey) return;
+  fbKey = key;
+  FB = R && R.paths.length ? { areas: R.paths.flatMap(P => P.areas.map(a => a.area)).join(", "), pathway: R.paths.map(P => PATH_NAME[P.path]).join(" or ") } : {};
+  $("fb").innerHTML = !key ? "" : key === "?"
+    ? `<div class="card"><div class="row"><span>Know which clinic this area goes to?</span><button type="button" data-fb="add">Add this area</button></div></div>`
+    : `<div class="card"><div class="row"><span>Was this right?</span><button type="button" data-fb="correct">Yes, correct</button><button type="button" data-fb="wrong">No, flag it</button></div></div>`;
+}
+$("fb").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-fb]"); if (!b) return;
+  const box = b.closest(".card");
+  if (b.dataset.fb === "add") {
+    const d = $("addArea"); d.open = true; d.querySelector("[name=area]").value = drainPlaceWords($("q").value);
+    d.scrollIntoView({ behavior: "smooth", block: "start" }); d.querySelector("[name=path]").focus({ preventScroll: true }); return;
+  }
+  if (b.dataset.fb === "wrong") {
+    box.innerHTML = `<form class="form" data-type="feedback" data-thanks="Thank you. Flagged for review."><b>What should it be?</b>
+      <span class="muted">Shown: ${esc(FB.pathway)} for ${esc(FB.areas)}</span>
+      <input type="hidden" name="verdict" value="wrong"><input type="hidden" name="areas" value="${esc(FB.areas)}"><input type="hidden" name="pathway" value="${esc(FB.pathway)}">
+      <label>It should be<select name="correct"><option value="">Not sure</option>${CLINIC_OPTS}</select></label>
+      <label>Comment <span class="muted">(optional, no patient names)</span><textarea name="comment" rows="2" maxlength="500"></textarea></label>
+      <label>Your name <span class="muted">(optional)</span><input name="from" class="me" maxlength="100" autocomplete="name"></label>
+      <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="row"><button class="primary">Send flag</button><span class="msg muted" role="status"></span></div></form>`;
+    fillNames(); return;
+  }
+  box.innerHTML = `<span role="status">Thank you!</span>`;   // "correct": one tap, nothing else to fill in
+  send({ type: "feedback", verdict: "correct", areas: FB.areas, pathway: FB.pathway, from: store("name") })
+    .catch(e => { box.innerHTML = `<span class="err">${esc(e.message)}</span>`; });
+});
+
+// ponytail: one search = an answer left on screen for 4 s, counted once per area found; a slow typist who pauses mid-address
+// can count twice. Only the number (and whether it was found) is sent.
+let countKey = "", countTimer = 0;
+function countSearch(R, txt) {
+  clearTimeout(countTimer);
+  if (!R) { countKey = ""; return; }
+  const key = R.paths.length ? R.paths.flatMap(P => P.areas.map(a => a.area)).join("|") : "?" + drainNorm(txt);
+  countTimer = setTimeout(() => {
+    if (key === countKey) return;
+    countKey = key; showInstallBar();
+    if (FEEDBACK_URL) fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify({ type: "search", found: R.paths.length > 0 }), keepalive: true }).catch(() => {});
+  }, 4000);
+}
+
+/* ---------- ready to type: the cursor is in the box when the app opens (phones show the keyboard on the first tap of the box) ---------- */
+$("q").focus();
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  // back after 5+ minutes: probably a new patient, so typing replaces the old address
+  if (Date.now() - hiddenAt > 300000 && !document.querySelector("dialog[open]")) { $("q").focus(); $("q").select(); }
+});
+
+/* ---------- getting it onto the home screen: Android / Chrome / Edge get the browser's own install box; the rest get steps for their browser ---------- */
+const UA = navigator.userAgent, touch = matchMedia("(pointer: coarse)").matches;
+const installed = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const ios = /iphone|ipad|ipod/i.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)/i.test(UA);   // another app's built-in browser: it can't add to the home screen
+const SHARE = `<svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="Share" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M7 11H5v10h14V11h-2"/></svg>`;
+let installEv = null;
+function howTo() {
+  const steps = inApp ? [`This page is open inside another app (like WhatsApp), which can't add it to the home screen.`,
+        `Tap ${ios ? "<b>⋯</b> or the compass icon" : "<b>⋮</b>"} in a corner of the screen and choose <b>Open in ${ios ? "Safari" : "Chrome"}</b> (or "Open in browser").`,
+        `There, tap <b>Add to home screen</b> again.`]
+    : ios && /CriOS|EdgiOS|FxiOS/.test(UA) ? [`Tap the Share button ${SHARE} at the top right, next to the address.`, `Tap <b>Add to Home Screen</b>.`, `Tap <b>Add</b>.`]
+    : ios ? [`Tap the Share button ${SHARE} at the bottom of Safari (newer iPhones: tap <b>⋯</b> first, then <b>Share</b>).`, `Scroll down and tap <b>Add to Home Screen</b>.`, `Tap <b>Add</b>.`]
+    : /SamsungBrowser/.test(UA) ? [`Tap the menu <b>≡</b> at the bottom right.`, `Tap <b>Add page to</b>, then <b>Home screen</b>.`, `Tap <b>Add</b>.`]
+    : touch ? [`Tap the browser menu <b>⋮</b> at the top right.`, `Tap <b>Add to Home screen</b> or <b>Install app</b>.`, `Tap <b>Add</b> or <b>Install</b>.`]
+    : [`On a computer: in Chrome or Edge, click the install icon at the right end of the address bar, or menu <b>⋮</b> > <b>Install</b>.`,
+       `For your phone: tap <b>Copy link</b>, send it to yourself (e.g. WhatsApp), open it on the phone and tap <b>Add to home screen</b> there.`];
+  $("howToBody").innerHTML = `<ol>${steps.map(s => `<li>${s}</li>`).join("")}</ol><span class="muted">Then the eye icon opens the app straight away, ready to type.</span>`;
+  $("howTo").showModal();
+}
+async function install() {
+  if (installEv) { const ev = installEv; installEv = null; ev.prompt(); if ((await ev.userChoice).outcome === "accepted") hideInstall(); return; }
+  howTo();
+}
+function hideInstall() { $("install").hidden = $("installBar").hidden = true; }
+// the bottom bar shows after a first search, never while installed, and stays away 14 days after "✕"
+function showInstallBar() { if (!installed() && (touch || installEv) && Date.now() > +store("barNotBefore")) $("installBar").hidden = false; }
+if (installed()) hideInstall();
+addEventListener("beforeinstallprompt", ev => { ev.preventDefault(); installEv = ev; });
+addEventListener("appinstalled", hideInstall);
+$("install").addEventListener("click", install);
+$("barAdd").addEventListener("click", install);
+$("barX").addEventListener("click", () => { $("installBar").hidden = true; store("barNotBefore", String(Date.now() + 14 * 864e5)); });
+$("howToClose").addEventListener("click", () => $("howTo").close());
+const link = () => location.href.split(/[?#]/)[0];
+async function copyLink(btn) { try { await navigator.clipboard.writeText(link()); btn.textContent = "Link copied"; } catch { prompt("Copy this link:", link()); } }
+$("copyLink").addEventListener("click", ev => copyLink(ev.target));
+$("share").addEventListener("click", ev => navigator.share
+  ? navigator.share({ title: "Eye referral pathway", text: "Which eye clinic to refer to, from the patient's address:", url: link() }).catch(() => {})
+  : copyLink(ev.target));
+</script>
+</body>
+</html>
