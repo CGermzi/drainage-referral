@@ -1,5 +1,6 @@
 /*
-  REFERRAL PATHWAY FEEDBACK: receives feedback, new areas, notes to the developer and daily search counts
+  CAPEREFER FEEDBACK: receives feedback, new areas, notes to the developer, daily search counts and anonymous
+  daily visits (unique users),
   from the web page, and writes them into a Google Sheet in your own Google account.
 
   ONE-TIME SETUP (about 5 minutes)
@@ -11,7 +12,7 @@
        ("unsafe" only means Google hasn't reviewed a script you wrote yourself.)
     4. Copy the Web app URL (ends in /exec). Open it in your browser: it should say "Referral pathway feedback is working".
     5. Paste it into index.html at  const FEEDBACK_URL = "";  (or send it to Claude to do).
-  The tabs (Daily searches, Feedback, New areas, Notes) appear by themselves with the first message.
+  The tabs (Daily searches, Daily visits, Feedback, New areas, Notes) appear by themselves with the first message.
 
   CHANGING THIS SCRIPT LATER: paste the new version, Save, then Deploy > Manage deployments > pencil >
   Version: New version > Deploy. That keeps the same URL ("New deployment" would make a new one).
@@ -19,6 +20,8 @@
 const TZ = "Africa/Johannesburg";
 const TABS = {
   search: ["Daily searches", ["Date", "Searches", "Not found"]],
+  // each phone checks in at most once a day, saying which of these firsts it is (no ID): sums give unique users
+  visit: ["Daily visits", ["Date", "Users today", "New users", "First this week", "First this month", "Installed app", "Browser", "iPhone", "Android", "Other"]],
   feedback: ["Feedback", ["Time", "Verdict", "Area(s) shown", "Pathway shown", "Should be", "Comment", "From"]],
   area: ["New areas", ["Time", "Area", "Pathway", "Town / district", "How they know", "From", "Your decision"]],
   note: ["Notes", ["Time", "Note", "From", "Contact"]],
@@ -40,6 +43,17 @@ function tab_(type) {
 function clean_(v) {
   const s = String(v == null ? "" : v).slice(0, 1000).trim();
   return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+// one row per day: the last row is today, or a new row of zeros is started; adds `add` to its counts
+function addToday_(sh, now, add) {
+  const today = Utilities.formatDate(now, TZ, "yyyy-MM-dd"), last = sh.getLastRow();
+  const v = last > 1 ? sh.getRange(last, 1).getValue() : "";
+  const lastDay = v instanceof Date ? Utilities.formatDate(v, TZ, "yyyy-MM-dd") : String(v).replace(/^'/, "");
+  let row = last;
+  if (lastDay !== today) { sh.appendRow(["'" + today].concat(add.map(() => 0))); row = last + 1; }
+  const r = sh.getRange(row, 2, 1, add.length), n = r.getValues()[0];
+  r.setValues([n.map((x, i) => Number(x) + add[i])]);
 }
 
 function reply_(ok) {
@@ -64,14 +78,12 @@ function doPost(e) {
   try {
     const sh = tab_(d.type), now = new Date(), c = clean_;
     if (d.type === "search") {
-      // one row per day: the last row is today, or a new row is started
-      const today = Utilities.formatDate(now, TZ, "yyyy-MM-dd"), last = sh.getLastRow();
-      const v = last > 1 ? sh.getRange(last, 1).getValue() : "";
-      const lastDay = v instanceof Date ? Utilities.formatDate(v, TZ, "yyyy-MM-dd") : String(v).replace(/^'/, "");
-      let row = last;
-      if (lastDay !== today) { sh.appendRow(["'" + today, 0, 0]); row = last + 1; }
-      const r = sh.getRange(row, 2, 1, 2), n = r.getValues()[0];
-      r.setValues([[Number(n[0]) + 1, Number(n[1]) + (d.found ? 0 : 1)]]);
+      addToday_(sh, now, [1, d.found ? 0 : 1]);
+    } else if (d.type === "visit") {
+      if (!d.day) return reply_(false);
+      const os = d.os === "iPhone" || d.os === "Android" ? d.os : "Other";
+      addToday_(sh, now, [1, d.new ? 1 : 0, d.week ? 1 : 0, d.month ? 1 : 0, d.mode === "app" ? 1 : 0, d.mode === "app" ? 0 : 1,
+        os === "iPhone" ? 1 : 0, os === "Android" ? 1 : 0, os === "Other" ? 1 : 0]);
     } else if (d.type === "feedback") {
       sh.appendRow([now, d.verdict, c(d.areas), c(d.pathway), c(d.correct), c(d.comment), c(d.from)]);
     } else if (d.type === "area") {
