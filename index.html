@@ -1250,12 +1250,13 @@ $("clear").addEventListener("click", () => { $("q").value = ""; render(); $("q")
    Only area names and the pathway shown are sent: never the street, house number or patient's name. ---------- */
 const FEEDBACK_URL = "https://script.google.com/macros/s/AKfycbzqwbmCAI0LvCIsgBUs9W7xCFX480xGfMK2o86a1T29CGRTOffl-FzNsQ4imXOUwNs0/exec";   // the Web app URL from apps-script.gs; empty = feedback switched off
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k) || ""; localStorage.setItem(k, v); } catch { } return ""; };
+// Google saves the message on arrival, but its reply sometimes fails (a 404 right after a redeploy), so the reply
+// isn't read: reaching Google counts as sent, and only no signal at all keeps the message for later.
+// A plain-text body needs no CORS preflight.
+const post = (d, keepalive = false) => fetch(FEEDBACK_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(d), keepalive });
 async function send(data) {
   if (!FEEDBACK_URL) throw new Error("Feedback isn't switched on yet.");
-  let r;
-  try { r = await fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(data) }); }   // a plain-text body: no CORS preflight
-  catch { queue(data); return false; }   // no signal: kept on this phone, sent when the signal is back
-  if (!r.ok || !(await r.json().catch(() => ({}))).ok) throw new Error("Couldn't save it. Please try again later.");
+  try { await post(data); } catch { queue(data); return false; }   // no signal: kept on this phone, sent when the signal is back
   return true;
 }
 const QUEUED = "No signal right now: it's saved on this phone and will be sent by itself when the signal is back.";
@@ -1269,7 +1270,7 @@ async function flush() {
   const list = outbox(); if (flushing || !FEEDBACK_URL || !list.length) return;
   flushing = true; setOutbox([]);
   const left = [];
-  for (const d of list) { try { await fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d) }); } catch { left.push(d); } }
+  for (const d of list) { try { await post(d); } catch { left.push(d); } }
   setOutbox([...left, ...outbox()]); flushing = false;
 }
 const PATH_OPTS = Object.keys(PATH_NAME).filter(pathSet).map(c => [c, PATH_NAME[c]]).map(([c, n]) => `<option value="${c}: ${esc(n)}">${esc(n)}</option>`).join("");
@@ -1335,7 +1336,7 @@ $("fb").addEventListener("click", ev => {
 // stops (keyboard closed, box cleared, app left); as not found only when they stop with no answer.
 // Only the number, and whether it was found, is sent.
 let look = null, lastLen = 0, countTimer = 0;
-const tally = found => { const d = { type: "search", found }; if (FEEDBACK_URL) fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d), keepalive: true }).catch(() => queue(d)); };
+const tally = found => { const d = { type: "search", found }; if (FEEDBACK_URL) post(d, true).catch(() => queue(d)); };
 function countSearch(R, txt) {
   clearTimeout(countTimer);
   if (!R) { endSearch(); look = null; lastLen = 0; return; }
@@ -1517,8 +1518,8 @@ addEventListener("online", signal); addEventListener("offline", signal); signal(
   const d = { type: "visit", new: !store("seen-ever"), day: true, week: store("seen-week") !== week, month: store("seen-month") !== month,
     mode: installed() ? "app" : "browser", os: ios ? "iPhone" : /android/i.test(UA) ? "Android" : "Other" };
   const mark = () => { store("seen-ever", "1"); store("seen-day", day); store("seen-week", week); store("seen-month", month); };
-  try { const r = await fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d) }); if (r.ok && (await r.json().catch(() => ({}))).ok) mark(); }
-  catch { queue(d); mark(); }   // no signal: it goes with the rest of the outbox later
+  try { await post(d); } catch { queue(d); }   // no signal: it goes with the rest of the outbox later
+  mark();
 })();
 </script>
 </body>
