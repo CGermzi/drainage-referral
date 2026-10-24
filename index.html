@@ -1142,18 +1142,32 @@ drainSetExtra([{"name": "Allenby Estate", "path": "VHW"}, {"name": "Diep River",
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// while a name is still being typed ("Rond"), the areas the drop-down offers are the answer (3 letters or more)
+function drainPartial(txt) {
+  const toks = drainNorm(String(txt).split(/[,\n]/).pop()).split(" ").filter(t => t && !/\d/.test(t)), S = drainSuggest(txt);
+  if (!S.list.length || toks.slice(-S.k).join("").length < 3) return null;
+  const paths = [...new Set(S.list.map(a => a.path))].map(path => ({ path, areas: S.list.filter(a => a.path === path) }));
+  return { paths, asks: [], notes: [], guesses: [], streetOnly: false, partial: true };
+}
+
 function render() {
   const txt = $("q").value, el = $("out");
   if (!txt.trim()) { el.innerHTML = ""; renderFb(null); countSearch(null); return; }
-  const R = drainLookup(txt);
+  let R = drainLookup(txt);
+  if (!R.paths.length) R = drainPartial(txt) || R;   // part of a name typed ("Rond"): the suggestions give the answer
   renderFb(R); countSearch(R, txt);
+  if (!R.paths.length && drainNorm(txt).replace(/[^a-z]/g, "").length < 3) { el.innerHTML = ""; renderFb(null); return; }   // 1-2 letters: just the drop-down
   const hosp = a => a.district === "Added by you" ? "added to the list" : a.district ? `${esc(a.district)} district${a.note ? ` (${esc(a.note)})` : ""}` : `${esc(DRAIN_HOSP[a.code])} (${a.code})`;
   // the first stop when it differs from the referral hospital: "Khayelitsha Hospital > Tygerberg Hospital"
   const hop = P => { const h = [...new Set(P.areas.map(a => drainFirst(a) || "direct"))]; return h.join("") === "direct" ? "" : h.join(" or "); };
   const route = P => `<div class="route">${hop(P) ? `<span class="hop">${esc(hop(P))}</span><span class="arr" aria-label="then">›</span>` : ""}<span class="big">${esc(PATH_NAME[P.path])}</span></div>`;
   const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
+  const names = P => P.areas.map(a => esc(a.area)).join(", ");
   let h;
-  if (!R.paths.length) h = `<div class="card answer none"><h2>Referral pathway</h2><span class="big">Area not found</span><span>Ask the patient for their suburb, or the clinic or day hospital they normally attend.</span>`
+  if (R.partial) h = R.paths.length === 1
+    ? `<div class="card answer"><h2>Best match while typing</h2>${route(R.paths[0])}<span class="muted">Matches ${names(R.paths[0])}. Keep typing or tap a suggestion to confirm.</span>`
+    : `<div class="card answer ask"><h2>Best match while typing</h2><span class="big">Keep typing: possible pathways</span><ul>${R.paths.map(P => `<li><b>${hop(P) ? esc(hop(P)) + " › " : ""}${esc(PATH_NAME[P.path])}</b>: ${names(P)}</li>`).join("")}</ul>`;
+  else if (!R.paths.length) h = `<div class="card answer none"><h2>Referral pathway</h2><span class="big">Area not found</span><span>Ask the patient for their suburb, or the clinic or day hospital they normally attend.</span>`
     + (R.guesses.length ? `<span>Did you mean: ${R.guesses.map(a => `<b>${esc(a.area)}</b> (${esc(PATH_NAME[a.path])})`).join(" · ")}?</span>` : "");
   else if (R.paths.length === 1) h = `<div class="card answer${R.asks.length ? " ask" : ""}"><h2>Referral pathway</h2>${route(R.paths[0])}${R.paths[0].areas.map(a => `<span>${areaLine(a)}</span>`).join("")}`;
   else h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Ask the suburb: possible pathways</span><ul>${R.paths.map(P => `<li><b>${hop(P) ? esc(hop(P)) + " › " : ""}${esc(PATH_NAME[P.path])}</b>: ${P.areas.map(areaLine).join("; ")}</li>`).join("")}</ul>`;
@@ -1282,7 +1296,7 @@ document.querySelector("[data-open]").addEventListener("click", ev => {
 // "Was this right?" under each answer; redrawn only when the answer changes, so a half-written flag survives typing
 let fbKey = "", FB = {};
 function renderFb(R) {
-  const key = !R ? "" : R.paths.length ? R.paths.map(P => P.path + ":" + P.areas.map(a => a.area).join("|")).join() : "?";
+  const key = !R || R.partial ? "" : R.paths.length ? R.paths.map(P => P.path + ":" + P.areas.map(a => a.area).join("|")).join() : "?";
   if (key === fbKey) return;
   fbKey = key;
   FB = R && R.paths.length ? { areas: R.paths.flatMap(P => P.areas.map(a => a.area)).join(", "), pathway: R.paths.map(P => PATH_NAME[P.path]).join(" or ") } : {};
@@ -1316,20 +1330,27 @@ $("fb").addEventListener("click", ev => {
     .catch(e => { box.innerHTML = `<span class="err">${esc(e.message)}</span>`; });
 });
 
-// One search = one answer. Found: counted once it has stayed on screen 4 s (again only for a different area).
-// Not found: counted only when the person stops on it (keyboard closed, box cleared, app left), so a half-typed
-// address is not a miss. Only the number, and whether it was found, is sent.
-let countKey = "", countTimer = 0, miss = false;
+// One search = one lookup: from the first letter until the box is cleared or its text replaced (the next patient).
+// It counts once: as found when an answer (a best match while typing too) stays 4 s or is showing when the person
+// stops (keyboard closed, box cleared, app left); as not found only when they stop with no answer.
+// Only the number, and whether it was found, is sent.
+let look = null, lastLen = 0, countTimer = 0;
 const tally = found => { const d = { type: "search", found }; if (FEEDBACK_URL) fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d), keepalive: true }).catch(() => queue(d)); };
 function countSearch(R, txt) {
   clearTimeout(countTimer);
-  if (!R) { endSearch(); countKey = ""; return; }
-  if (!R.paths.length) { miss = drainNorm(txt).replace(/[^a-z]/g, "").length >= 3; return; }
-  miss = false;
-  const key = R.paths.flatMap(P => P.areas.map(a => a.area)).join("|");
-  countTimer = setTimeout(() => { if (key !== countKey) { countKey = key; tally(true); showInstallBar(); } }, 4000);
+  if (!R) { endSearch(); look = null; lastLen = 0; return; }
+  if (look && txt.length <= lastLen - 3) { endSearch(); look = null; }   // text replaced (select all, type): a new lookup
+  lastLen = txt.length;
+  look = look || { counted: false };
+  look.answer = R.paths.length > 0;
+  look.miss = !look.answer && drainNorm(txt).replace(/[^a-z]/g, "").length >= 3;
+  if (look.answer && !look.counted) countTimer = setTimeout(endSearch, 4000);
 }
-function endSearch() { if (miss) { miss = false; tally(false); } }
+function endSearch() {
+  if (!look || look.counted || !(look.answer || look.miss)) return;
+  look.counted = true; tally(look.answer);
+  if (look.answer) showInstallBar();
+}
 $("q").addEventListener("blur", endSearch);
 document.addEventListener("visibilitychange", () => { if (document.hidden) endSearch(); });
 
@@ -1483,6 +1504,22 @@ $("share").addEventListener("click", ev => navigator.share
 if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
 const signal = () => { $("offline").hidden = navigator.onLine; if (navigator.onLine) flush(); };
 addEventListener("online", signal); addEventListener("offline", signal); signal();
+
+/* ---------- unique users: once a day each phone says which firsts this open is (ever / today / this week / this month),
+   with installed app or browser and iPhone / Android. No ID: the sheet only adds up the firsts. ---------- */
+// ponytail: counts phones' browsers, not people: iPhone's home-screen app and Safari count apart, cleared data counts as new
+(async () => {
+  if (!FEEDBACK_URL) return;
+  try { localStorage.setItem("seen-test", "1"); localStorage.removeItem("seen-test"); } catch { return; }   // no memory here: repeats can't be told apart
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg" }).format(new Date());   // "2026-10-23", Cape Town time
+  const d0 = new Date(day + "T00:00:00Z"), week = new Date(d0 - ((d0.getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10), month = day.slice(0, 7);
+  if (store("seen-day") === day) return;   // already checked in today
+  const d = { type: "visit", new: !store("seen-ever"), day: true, week: store("seen-week") !== week, month: store("seen-month") !== month,
+    mode: installed() ? "app" : "browser", os: ios ? "iPhone" : /android/i.test(UA) ? "Android" : "Other" };
+  const mark = () => { store("seen-ever", "1"); store("seen-day", day); store("seen-week", week); store("seen-month", month); };
+  try { const r = await fetch(FEEDBACK_URL, { method: "POST", body: JSON.stringify(d) }); if (r.ok && (await r.json().catch(() => ({}))).ok) mark(); }
+  catch { queue(d); mark(); }   // no signal: it goes with the rest of the outbox later
+})();
 </script>
 </body>
 </html>
