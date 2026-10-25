@@ -1027,7 +1027,11 @@ function drainIndex() {
   if (DRAIN_IDX) return DRAIN_IDX;
   const areas = DRAIN_DATA.split("\n").map(l => { const [area, code, district, note] = l.split("|");
     return district ? { area, code: "", path: code, district, note: note || "", base: drainNorm(drainBase(area)) } : { area, code, path: DRAIN_PATH[code], base: drainNorm(drainBase(area)) }; })
-    .concat(DRAIN_EXTRA.filter(x => PATH_NAME[x.path]).map(x => ({ area: x.name, code: "", path: x.path, district: "Added by you", note: "", base: drainNorm(drainBase(x.name)) })));
+    // added later: {name, path} a referral pathway, or {name, border: [first-stop codes]} a border area that could
+    // drain either way (the lookup then says so and asks to enquire)
+    .concat(DRAIN_EXTRA.flatMap(x => (x.border || [""]).map(c => { const path = c ? DRAIN_PATH[c] : x.path;
+      return PATH_NAME[path] ? { area: x.name, code: c, path, district: x.border ? "Border area" : "Added by you", note: "", border: !!x.border, base: drainNorm(drainBase(x.name)) } : null; }))
+      .filter(Boolean));
   const byKey = new Map(), keys = [];
   areas.forEach(a => [a.base, a.area, ...(DRAIN_ALIAS[a.area] || [])].forEach(v => {
     const k = drainNorm(v).replace(/ /g, ""); if (!k) return;
@@ -1078,10 +1082,11 @@ function drainLookup(address) {
   const settled = new Set(use.filter(h => new Set(h.list.map(a => a.path)).size === 1).map(h => h.list[0].path));
   use.forEach(h => { if (new Set(h.list.map(a => a.path)).size > 1) { const k = h.list.filter(a => settled.has(a.path)); if (k.length) h.list = k; } });
   use.forEach(h => {
-    h.list.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path)) areas.push({ ...a, said: h.said }); });
+    h.list.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path && x.code === a.code)) areas.push({ ...a, said: h.said }); });
     if (h.d) notes.push(`Read "${h.said}" as ${h.list.map(a => a.area).join(" / ")}.`);
     const ps = [...new Set(h.list.map(a => a.path))];
-    if (ps.length > 1 || new Set(h.list.map(drainRoute)).size > 1) asks.push(`"${h.said}" can be ${h.list.map(a => `${a.area} (${drainRoute(a)})`).join(" or ")}. Ask which part they live in.`);
+    if (h.list.length > 1 && h.list.every(a => a.border)) asks.push(`Not on the confirmed drainage list: ${h.list[0].area} borders the ${[...new Set(h.list.map(a => DRAIN_HOSP[a.code]))].join(" / ")} drainage areas. Enquire the correct referral route.`);
+    else if (ps.length > 1 || new Set(h.list.map(drainRoute)).size > 1) asks.push(`"${h.said}" can be ${h.list.map(a => `${a.area} (${drainRoute(a)})`).join(" or ")}. Ask which part they live in.`);
   });
   // postal codes: confirm the suburb, find it when only the code is given, or flag a code that belongs elsewhere
   const byName = n => { const exact = X.areas.filter(a => a.area.toLowerCase() === n.toLowerCase()); return exact.length ? exact : X.byKey.get(drainNorm(drainBase(n)).replace(/ /g, "")) || []; };
@@ -1093,7 +1098,7 @@ function drainLookup(address) {
     if (areas.length) asks.unshift(`Postal code ${code} is ${list}, not ${[...new Set(areas.map(a => a.area))].join(" / ")}. Ask which is right.`);
     else if (!cand.length) { notes.push(`Postal code ${code} is ${list}, which is not on the drainage list.`); return; }
     else notes.push(`Found from postal code ${code} only (${list}).`);
-    cand.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path)) areas.push({ ...a, said: code, via: code }); });
+    cand.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path && x.code === a.code)) areas.push({ ...a, said: code, via: code }); });
     if (!asks.length && new Set(cand.map(a => a.path)).size > 1) asks.unshift(`Postal code ${code} covers ${list}, which go to different hospitals. Ask the suburb.`);
   });
   const paths = [...new Set(areas.map(a => a.path))].map(path => ({ path, areas: areas.filter(a => a.path === path) }));
@@ -1144,7 +1149,8 @@ function drainSuggest(text) {
   }
   return { k: 0, list: [] };
 }
-drainSetExtra([{"name": "Allenby Estate", "path": "VHW"}, {"name": "Diep River", "path": "VHW"}, {"name": "Meadowridge", "path": "VHW"}, {"name": "Parklands", "path": "NSH"}, {"name": "Phoenix", "path": "NSH"}]);
+drainSetExtra([{"name": "Allenby Estate", "path": "VHW"}, {"name": "Diep River", "path": "VHW"}, {"name": "Meadowridge", "path": "VHW"}, {"name": "Parklands", "path": "NSH"}, {"name": "Phoenix", "path": "NSH"},
+  {"name": "Monwabisi", "border": ["HBH", "KDH"]}]);
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1153,8 +1159,10 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 function drainPartial(txt) {
   const toks = drainNorm(String(txt).split(/[,\n]/).pop()).split(" ").filter(t => t && !/\d/.test(t)), S = drainSuggest(txt);
   if (!S.list.length || toks.slice(-S.k).join("").length < 3) return null;
-  const paths = [...new Set(S.list.map(a => a.path))].map(path => ({ path, areas: S.list.filter(a => a.path === path) }));
-  return { paths, asks: [], notes: [], guesses: [], streetOnly: false, partial: true };
+  const all = drainIndex().areas.filter(a => S.list.some(s => s.area === a.area));   // every entry of each name (a border area has two)
+  const paths = [...new Set(all.map(a => a.path))].map(path => ({ path, areas: all.filter(a => a.path === path) }));
+  const asks = [...new Set(all.filter(a => a.border).map(a => a.area))].map(n => `Not on the confirmed drainage list: ${n} borders the ${all.filter(a => a.area === n).map(a => DRAIN_HOSP[a.code]).join(" / ")} drainage areas. Enquire the correct referral route.`);
+  return { paths, asks, notes: [], guesses: [], streetOnly: false, partial: true };
 }
 
 function render() {
@@ -1164,12 +1172,12 @@ function render() {
   if (!R.paths.length) R = drainPartial(txt) || R;   // part of a name typed ("Rond"): the suggestions give the answer
   renderFb(R); countSearch(R, txt);
   if (!R.paths.length && drainNorm(txt).replace(/[^a-z]/g, "").length < 3) { el.innerHTML = ""; renderFb(null); return; }   // 1-2 letters: just the drop-down
-  const hosp = a => a.district === "Added by you" ? "added to the list" : a.district ? `${esc(a.district)} district${a.note ? ` (${esc(a.note)})` : ""}` : `${esc(DRAIN_HOSP[a.code])} (${a.code})`;
+  const hosp = a => a.border ? `border area: ${esc(DRAIN_HOSP[a.code])} (${a.code})` : a.district === "Added by you" ? "added to the list" : a.district ? `${esc(a.district)} district${a.note ? ` (${esc(a.note)})` : ""}` : `${esc(DRAIN_HOSP[a.code])} (${a.code})`;
   // the first stop when it differs from the referral hospital: "Khayelitsha Hospital > Tygerberg Hospital"
   const hop = P => { const h = [...new Set(P.areas.map(a => drainFirst(a) || "direct"))]; return h.join("") === "direct" ? "" : h.join(" or "); };
   const route = P => `<div class="route">${hop(P) ? `<span class="hop">${esc(hop(P))}</span><span class="arr" aria-label="then">›</span>` : ""}<span class="big">${esc(PATH_NAME[P.path])}</span></div>`;
   const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
-  const names = P => P.areas.map(a => esc(a.area)).join(", ");
+  const names = P => [...new Set(P.areas.map(a => a.area))].map(esc).join(", ");
   let h;
   if (R.partial) h = R.paths.length === 1
     ? `<div class="card answer"><h2>Best match while typing</h2>${route(R.paths[0])}<span class="muted">Matches ${names(R.paths[0])}. Keep typing or tap a suggestion to confirm.</span>`
