@@ -517,7 +517,8 @@ Montague Gardens|NSH
 Montana|NSH
 Monte Vista|KBH
 Montrose Park|MPH
-Morgenster|MPH
+Morgenster (Mitchells Plain)|MPH
+Morgenster (Brackenfell)|KBH
 Morgenster Hoogte|KBH
 Morningstar|KBH
 Mountview|GSH
@@ -1014,7 +1015,7 @@ const DRAIN_ALIAS = { "Lentegeur": ["lenteguer", "lentegeuer"], "The Leagues": [
   "Mitchells Plain": ["mitchell s plain", "m plain"], "New Rest Squatter Camp": ["new rest"], "Heinz Park (Philippi)": ["heinz park"], "Khayelitsha": ["khayalitsha", "khayelitsa"],
   "Never Neva": ["never never"], "Sea Point": ["seapoint"], "Primrose Park": ["primose park"], "Saalberau": ["salberau"], "Bonteheuwel": ["bonteheuvel"],
   "Manenberg": ["manenburg"], "Hanover Park": ["hannover park"], "Velddrif": ["veldrif"], "Samora Machel": ["samora"], "Bettys Bay": ["betty s bay"], "Plettenberg Bay": ["plett"],
-  "Blouberg": ["bloubergstrand"], "Gugulethu": ["gugs"] };
+  "Blouberg": ["bloubergstrand"], "Gugulethu": ["gugs"], "Morgenster Hoogte": ["morgenster heights"] };
 const DRAIN_STREET = new Set("street st str road rd avenue ave av crescent cres cr close cl drive dr way lane ln circle cir court ct walk place pl boulevard blvd highway hwy terrace tce grove mews link".split(" "));
 // address words that are never a place name (kept out of the spelling-mistake match)
 const DRAIN_STOP = new Set("cape town western south africa rsa wc unit flat house no number block section ext extension phase erf the and of in at near behind next to".split(" "));
@@ -1072,6 +1073,10 @@ function drainLookup(address) {
   });
   const firm = keep.filter(h => !h.street), streetHits = keep.filter(h => h.street), streetOnly = !firm.length && streetHits.length > 0;
   const use = firm.length ? firm : streetHits, asks = [], notes = [], areas = [];
+  // a name used in two places ("Morgenster") next to another place in the address that settles it ("Mitchells Plain"):
+  // keep the option on the same route as the rest of the address
+  const settled = new Set(use.filter(h => new Set(h.list.map(a => a.path)).size === 1).map(h => h.list[0].path));
+  use.forEach(h => { if (new Set(h.list.map(a => a.path)).size > 1) { const k = h.list.filter(a => settled.has(a.path)); if (k.length) h.list = k; } });
   use.forEach(h => {
     h.list.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path)) areas.push({ ...a, said: h.said }); });
     if (h.d) notes.push(`Read "${h.said}" as ${h.list.map(a => a.area).join(" / ")}.`);
@@ -1098,7 +1103,9 @@ function drainLookup(address) {
     asks.unshift("The address names areas with different pathways. Ask which suburb they live in.");
   // a longer name that goes elsewhere ("Athlone" vs "Athlone Industria", "Morgenster" vs "Morgenster Hoogte")
   areas.forEach(a => X.areas.forEach(b => {
-    if (drainRoute(b) !== drainRoute(a) && b.base.startsWith(a.base + " ") && !areas.some(x => x.area === b.area)) asks.push(`If they live in ${b.area}, the pathway is ${drainRoute(b)} instead. Check.`);
+    // (not when another place in the address already points away from it: "Morgenster, Mitchells Plain")
+    if (drainRoute(b) !== drainRoute(a) && b.base.startsWith(a.base + " ") && !areas.some(x => x.area === b.area) && !(use.length > 1 && !settled.has(b.path))
+      && !drainNorm(a.said || "").startsWith(a.base + " ")) asks.push(`If they live in ${b.area}, the pathway is ${drainRoute(b)} instead. Check.`);
   }));
   let guesses = [];
   if (!areas.length) {   // nothing recognised: wider spelling search, offered as "did you mean"
