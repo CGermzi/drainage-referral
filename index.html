@@ -10,7 +10,7 @@
       Until then the page works, but feedback says "not switched on yet" and nothing is counted.
 
   TRY IT ON YOUR COMPUTER
-    Double-click index.html: it opens in your browser and works offline (the map lookup needs internet).
+    Double-click index.html: it opens in your browser and works offline.
     The "Add to home screen" button only works once the page is online (https).
 
   PUT IT ONLINE FOR EVERYONE (free; pick one)
@@ -33,9 +33,9 @@
       Cape Town metro:  Area|HOSPITAL         e.g.  Athlone|GSH
         HOSPITAL is the drainage hospital: GSH Groote Schuur, VHW Victoria, NSH New Somerset, MPH Mitchells Plain,
         HEC Heideveld (goes to Mitchells Plain), TBH Tygerberg, KDH Khayelitsha, HBH Helderberg, KBH Karl Bremer,
-        ERH Eerste River (these four go to Tygerberg), FBH False Bay (goes to Groote Schuur).
+        ERH Eerste River (these four go to Tygerberg), FBH False Bay (goes to Groote Schuur), WES Wesfleur (goes to New Somerset).
       Outside the metro:  Area|PATHWAY|District|note     e.g.  Velddrif|NSH|West Coast|rough rule: coast side of the N7
-        PATHWAY: GSH, VHW, NSH, MPH, TBH, PAA (Paarl), WOR (Worcester), or CWD / OVD / GRD / CKD (pathway not set yet).
+        PATHWAY: GSH, VHW, NSH, MPH, TBH, PAA (Paarl), WOR (Worcester), CAL (Caledon, then Worcester), or CWD / OVD / GRD / CKD (pathway not set yet).
         A note makes the page ask the user to check before referring.
     Postal codes: the line starting  const DRAIN_POST_DATA , one per line:  code|Suburb   e.g.  7785|Philippi
     Other spellings of a name: const DRAIN_ALIAS = { "Philippi": ["phillipi", "philipi"], ... }
@@ -118,6 +118,7 @@ button.pill svg { width: 14px; height: 14px; color: var(--accent) }
 .between { justify-content: space-between }
 .muted { color: var(--muted); font-size: .88rem }
 .err { color: var(--err) }
+.src .linkish { padding: 0 4px; font-size: inherit }
 ul, ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 5px }
 span.ic { width: 36px; height: 36px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none }
 span.ic svg { width: 18px; height: 18px }
@@ -279,10 +280,10 @@ footer a { color: var(--accent); font-weight: 600 }
   </header>
   <div id="offline" class="offline" role="status" hidden><span class="dot"></span>No signal: lookups still work. Anything you send waits on this phone until the signal is back.</div>
   <div class="card search">
-    <label for="q" class="search-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Patient's address or suburb</label>
-    <textarea id="q" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="words" enterkeyhint="search" placeholder="e.g. 12 Lansdowne Road, Philippi, 7785"></textarea>
+    <label for="q" class="search-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Patient's suburb or postal code</label>
+    <textarea id="q" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="words" enterkeyhint="search" placeholder="e.g. Philippi or 7785"></textarea>
     <div id="sugg" class="sugg" role="listbox" aria-label="Matching areas" hidden></div>
-    <div class="row between"><span class="muted">Finds suburbs listed on the drainage map. Full street-address search is coming soon.</span><button id="clear" class="ghost" type="button">Clear</button></div>
+    <div class="row between"><span class="muted">Type the suburb or postal code where the patient lives.</span><button id="clear" class="ghost" type="button">Clear</button></div>
   </div>
   <div id="out" aria-live="polite"></div>
   <div id="fb"></div>
@@ -342,12 +343,12 @@ footer a { color: var(--accent); font-weight: 600 }
 <script>
 /* drainage:start */
 const DRAIN_HOSP = { GSH: "Groote Schuur", HEC: "Heideveld EC", MPH: "Mitchells Plain", HBH: "Helderberg", KBH: "Karl Bremer", ERH: "Eerste River",
-  TBH: "Tygerberg", VHW: "Victoria (Wynberg)", NSH: "New Somerset", KDH: "Khayelitsha", FBH: "False Bay",
+  TBH: "Tygerberg", VHW: "Victoria (Wynberg)", NSH: "New Somerset", KDH: "Khayelitsha", FBH: "False Bay", WES: "Wesfleur",
   WCD: "West Coast district", CWD: "Cape Winelands district", OVD: "Overberg district", GRD: "Garden Route district", CKD: "Central Karoo district" };
-const DRAIN_PATH = { GSH: "GSH", KDH: "TBH", FBH: "GSH", VHW: "VHW", NSH: "NSH", MPH: "MPH", HEC: "MPH", HBH: "TBH", KBH: "TBH", ERH: "TBH", TBH: "TBH",
+const DRAIN_PATH = { GSH: "GSH", KDH: "TBH", FBH: "GSH", VHW: "VHW", NSH: "NSH", MPH: "MPH", HEC: "MPH", HBH: "TBH", KBH: "TBH", ERH: "TBH", TBH: "TBH", WES: "NSH",
   WCD: "WCD", CWD: "CWD", OVD: "OVD", GRD: "GRD", CKD: "CKD" };
 const PATH_NAME = { GSH: "Groote Schuur Hospital", VHW: "Victoria Hospital (Wynberg)", NSH: "New Somerset Hospital (then Groote Schuur)", MPH: "Mitchells Plain Hospital",
-  TBH: "Tygerberg Hospital", PAA: "Paarl Hospital (then Tygerberg)", WOR: "Worcester Hospital (then Tygerberg)",
+  TBH: "Tygerberg Hospital", PAA: "Paarl Hospital (then Tygerberg)", WOR: "Worcester Hospital (then Tygerberg)", CAL: "Caledon Hospital (then Worcester, then Tygerberg)",
   CWD: "Cape Winelands: Paarl or Worcester, path not set", OVD: "Overberg: referral path not set yet", GRD: "Garden Route: referral path not set yet", CKD: "Central Karoo: referral path not set yet" };
 const pathSet = p => !/not set/.test(PATH_NAME[p] || "not set");   // false for the districts with no referral path yet
 const drainHospName = c => DRAIN_HOSP[c] + (/ EC$/.test(DRAIN_HOSP[c]) ? "" : " Hospital");
@@ -356,7 +357,7 @@ const drainFirst = a => a.code && DRAIN_PATH[a.code] !== a.code ? drainHospName(
 const drainRoute = a => (drainFirst(a) ? drainFirst(a) + " › " : "") + PATH_NAME[a.path];
 const DRAIN_DATA = `Athlone|GSH
 Athlone Industria|HEC
-Atlantis|NSH
+Atlantis|WES
 Austinville|ERH
 Avondale|KBH
 Balvenie|TBH
@@ -548,7 +549,7 @@ Palm Park|ERH
 Park Village|ERH
 Parow (N of Voortrekker)|KBH
 Parow (S of Voortrekker)|TBH
-Parowvallei|TBH
+Parowvallei|KBH
 Peerless Park|KBH
 Pelican Heights|VHW
 Pelican Park|VHW
@@ -666,22 +667,22 @@ Langebaan|NSH|West Coast|rough rule: coast side of the N7
 Paternoster|NSH|West Coast|rough rule: coast side of the N7
 St Helena Bay|NSH|West Coast|rough rule: coast side of the N7
 Hopefield|NSH|West Coast|rough rule: coast side of the N7
-Darling|NSH|West Coast|rough rule: coast side of the N7
-Yzerfontein|NSH|West Coast|rough rule: coast side of the N7
+Darling|PAA|West Coast|
+Yzerfontein|PAA|West Coast|
 Lamberts Bay|NSH|West Coast|rough rule: coast side of the N7
 Elands Bay|NSH|West Coast|rough rule: coast side of the N7
 Graafwater|NSH|West Coast|rough rule: coast side of the N7
 Aurora|NSH|West Coast|rough rule: coast side of the N7
-Moorreesburg|PAA|West Coast|rough rule: inland of the N7
+Moorreesburg|PAA|West Coast|
 Porterville|PAA|West Coast|rough rule: inland of the N7
-Riebeek Kasteel|PAA|West Coast|rough rule: inland of the N7
-Riebeek West|PAA|West Coast|rough rule: inland of the N7
-Koringberg|PAA|West Coast|rough rule: inland of the N7
+Riebeek Kasteel|PAA|West Coast|
+Riebeek West|PAA|West Coast|
+Koringberg|PAA|West Coast|
 Citrusdal|PAA|West Coast|rough rule: inland of the N7
 Clanwilliam|PAA|West Coast|rough rule: inland of the N7
-Abbotsdale|PAA|West Coast|rough rule: inland of the N7
-Chatsworth|PAA|West Coast|rough rule: inland of the N7
-Kalbaskraal|PAA|West Coast|rough rule: inland of the N7
+Abbotsdale|PAA|West Coast|
+Chatsworth|PAA|West Coast|
+Kalbaskraal|PAA|West Coast|
 Lutzville|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
 Ebenhaeser|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
 Doringbaai|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
@@ -693,14 +694,14 @@ Stellenbosch|PAA|Cape Winelands|
 Franschhoek|PAA|Cape Winelands|
 Paarl|PAA|Cape Winelands|
 Wellington|PAA|Cape Winelands|
-Pniel|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
-Kayamandi|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
-Cloetesville|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
-Idas Valley|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
-Klapmuts|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
-Mbekweni|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
-Saron|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
-Gouda|PAA|Cape Winelands|part of the Paarl / Stellenbosch area (not confirmed)
+Pniel|PAA|Cape Winelands|
+Kayamandi|PAA|Cape Winelands|
+Cloetesville|PAA|Cape Winelands|
+Idas Valley|PAA|Cape Winelands|
+Klapmuts|PAA|Cape Winelands|
+Mbekweni|PAA|Cape Winelands|
+Saron|PAA|Cape Winelands|
+Gouda|PAA|Cape Winelands|
 Worcester|WOR|Cape Winelands|
 Zwelethemba|WOR|Cape Winelands|Worcester's own area (not confirmed)
 Avian Park|WOR|Cape Winelands|Worcester's own area (not confirmed)
@@ -719,8 +720,8 @@ Prince Alfred Hamlet|CWD|Cape Winelands|
 Op die Berg|CWD|Cape Winelands|
 Nduli|CWD|Cape Winelands|
 Cape Winelands|CWD|Cape Winelands|
-Caledon|WOR|Overberg|probably Worcester: exact drainage not confirmed
-Hermanus|OVD|Overberg|
+Caledon|CAL|Overberg|
+Hermanus|CAL|Overberg|
 Grabouw|OVD|Overberg|
 Bredasdorp|OVD|Overberg|
 Swellendam|OVD|Overberg|
@@ -741,13 +742,13 @@ Pringle Bay|OVD|Overberg|
 Elgin|OVD|Overberg|
 Arniston|OVD|Overberg|
 Suurbraak|OVD|Overberg|
-Zwelihle|OVD|Overberg|
-Hawston|OVD|Overberg|
-Onrus|OVD|Overberg|
-Sandbaai|OVD|Overberg|
+Zwelihle|CAL|Overberg|part of the Hermanus area (not confirmed)
+Hawston|CAL|Overberg|part of the Hermanus area (not confirmed)
+Onrus|CAL|Overberg|part of the Hermanus area (not confirmed)
+Sandbaai|CAL|Overberg|part of the Hermanus area (not confirmed)
 Pearly Beach|OVD|Overberg|
 Overberg|OVD|Overberg|
-George|GRD|Garden Route|
+George|GSH|Garden Route|
 Knysna|GRD|Garden Route|
 Mossel Bay|GRD|Garden Route|
 Oudtshoorn|GRD|Garden Route|
@@ -767,8 +768,8 @@ Hartenbos|GRD|Garden Route|
 Haarlem|GRD|Garden Route|
 Dysselsdorp|GRD|Garden Route|
 De Rust|GRD|Garden Route|
-Thembalethu|GRD|Garden Route|
-Pacaltsdorp|GRD|Garden Route|
+Thembalethu|GSH|Garden Route|part of George (not confirmed)
+Pacaltsdorp|GSH|Garden Route|part of George (not confirmed)
 Kwanokuthula|GRD|Garden Route|
 Kranshoek|GRD|Garden Route|
 Garden Route|GRD|Garden Route|
@@ -1103,7 +1104,7 @@ function drainLookup(address) {
   });
   const paths = [...new Set(areas.map(a => a.path))].map(path => ({ path, areas: areas.filter(a => a.path === path) }));
   areas.forEach(a => { if (a.note) asks.push(`${a.area}: ${a.note}. Check before referring.`); else if (a.district && !pathSet(a.path)) asks.push(`${a.area} (${a.district}): no referral path set up yet. Check before referring.`); });
-  if (streetOnly) asks.unshift(`Only a street name was recognised (${streetHits.map(h => h.said).join(", ")}). Streets can run through more than one area. Ask for the suburb.`);
+  if (streetOnly) asks.unshift(`Only a street name was recognised (${streetHits.map(h => h.said).join(", ")}). Streets can run through more than one area. Ask for the suburb or postal code.`);
   else if (use.filter(h => new Set(h.list.map(a => a.path)).size === 1).map(h => h.list[0].path).filter((v, i, a) => a.indexOf(v) === i).length > 1)
     asks.unshift("The address names areas with different pathways. Ask which suburb they live in.");
   // a longer name that goes elsewhere ("Athlone" vs "Athlone Industria", "Morgenster" vs "Morgenster Hoogte")
@@ -1165,7 +1166,12 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 // a border area (not on the confirmed list, between two drainage areas): we say we're not sure and ask staff to tell us
 const BORDER_ASK = "Please let us know the correct drainage: tap “Tell us the correct route” below.";
 const borderText = areas => { const names = [...new Set(areas.map(a => DRAIN_HOSP[a.code]))];
-  return `We're not sure where ${areas[0].area} drains. Based on our data it borders the ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} drainage areas.`; };
+  return `${areas[0].area} is a border area between the ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} drainage areas. Its drainage is undefined, so the route can't be given with confidence.`; };
+// where an answer comes from, shown under it
+const srcOf = a => a.border ? "drainage map (border area)" : a.district === "Added by you" ? "confirmed by the developer"
+  : a.district ? (a.note ? "estimate, not confirmed" : "district referral pathways") : "reference drainage list and poster";
+const srcLine = R => { const s = [...new Set(R.paths.flatMap(P => P.areas.map(srcOf)))];
+  return `<span class="muted src">Source: ${esc(s.join("; "))}${s.includes("reference drainage list and poster") ? ` <button type="button" class="linkish" data-refs>View</button>` : ""}</span>`; };
 const isBorder = R => R.paths.length > 0 && R.paths.every(P => P.areas.every(a => a.border));
 
 // while a name is still being typed ("Rond"), the areas the drop-down offers are the answer (3 letters or more)
@@ -1192,61 +1198,22 @@ function render() {
   const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
   const names = P => [...new Set(P.areas.map(a => a.area))].map(esc).join(", ");
   let h;
-  if (isBorder(R)) h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Not confirmed</span><span>${esc(borderText(R.paths.flatMap(P => P.areas)))}</span>`;
+  if (isBorder(R)) h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Drainage not certain</span><span>${esc(borderText(R.paths.flatMap(P => P.areas)))}</span>`;
   else if (R.partial) h = R.paths.length === 1
     ? `<div class="card answer"><h2>Best match while typing</h2>${route(R.paths[0])}<span class="muted">Matches ${names(R.paths[0])}. Keep typing or tap a suggestion to confirm.</span>`
     : `<div class="card answer ask"><h2>Best match while typing</h2><span class="big">Keep typing: possible pathways</span><ul>${R.paths.map(P => `<li><b>${hop(P) ? esc(hop(P)) + " › " : ""}${esc(PATH_NAME[P.path])}</b>: ${names(P)}</li>`).join("")}</ul>`;
-  else if (!R.paths.length) h = `<div class="card answer none"><h2>Referral pathway</h2><span class="big">Area not found</span><span>Ask the patient for their suburb, or the clinic or day hospital they normally attend.</span>`
+  else if (!R.paths.length) h = `<div class="card answer none"><h2>Referral pathway</h2><span class="big">Area not found</span><span>Check the suburb or postal code with the patient.</span>`
     + (R.guesses.length ? `<span>Did you mean: ${R.guesses.map(a => `<b>${esc(a.area)}</b> (${esc(PATH_NAME[a.path])})`).join(" · ")}?</span>` : "");
   else if (R.paths.length === 1) h = `<div class="card answer${R.asks.length ? " ask" : ""}"><h2>Referral pathway</h2>${route(R.paths[0])}${R.paths[0].areas.map(a => `<span>${areaLine(a)}</span>`).join("")}`;
   else h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Ask the suburb: possible pathways</span><ul>${R.paths.map(P => `<li><b>${hop(P) ? esc(hop(P)) + " › " : ""}${esc(PATH_NAME[P.path])}</b>: ${P.areas.map(areaLine).join("; ")}</li>`).join("")}</ul>`;
+  if (R.paths.length) h += srcLine(R);
   if (R.notes.length) h += `<span class="muted">${esc(R.notes.join(" "))}</span>`;
   h += `</div>`;
   if (R.asks.length) h += `<div class="card check"><h2>Ask or check</h2><ul>${R.asks.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>`;
-  const unset = R.paths.filter(P => !pathSet(P.path));
-  if (!R.paths.length || R.streetOnly || R.asks.length || unset.length) h += `<div class="card" id="mapBox">${mapHtml(txt)}</div>`;
   el.innerHTML = h;
 }
 
-/* ---------- map lookup (OpenStreetMap Nominatim, free, no key): only on a tap, the address as typed, South Africa only;
-   Western Cape results only. Each place found goes through the drainage list, which still decides the pathway. ---------- */
-const M = { text: "", busy: false, res: null, err: null };
-async function mapLookup(text) {
-  const q = new URLSearchParams({ q: text.replace(/\s+/g, " ").trim(), format: "jsonv2", addressdetails: "1", countrycodes: "za", limit: "8", viewbox: "17.5,-30.5,24.5,-35.0", "accept-language": "en" });
-  const r = await fetch("https://nominatim.openstreetmap.org/search?" + q);
-  if (!r.ok) throw new Error(r.status === 429 ? "OpenStreetMap is busy. Wait a minute and try again." : `OpenStreetMap answered ${r.status}.`);
-  const all = (await r.json()).map(x => x.address || {});
-  const wc = all.filter(a => /western cape/i.test(a.state || "")), seen = new Set(), places = [];
-  wc.forEach(a => {
-    if (/\bward\b/i.test(a.city_district || "")) delete a.city_district;   // "Cape Town Ward 22" is not a place
-    const sub = a.suburb || a.neighbourhood || a.quarter || a.village || a.hamlet || "", town = a.town || a.city || a.municipality || "";
-    const key = [sub, town, a.postcode].join("|"); if (seen.has(key)) return; seen.add(key);
-    places.push({ label: [a.road, sub, a.city_district, town, a.postcode].filter((v, i, x) => v && x.indexOf(v) === i).join(", "), R: drainLookup([sub, a.city_district, town, a.postcode].filter(Boolean).join(", ")) });
-  });
-  const outside = wc.length ? [] : all.map(a => [a.suburb, a.town || a.city, a.state].filter(Boolean).join(", ")).filter(Boolean).slice(0, 4);
-  return { places, outside };
-}
-function mapHtml(txt) {
-  let h = `<h2>Map lookup</h2>`;
-  if (M.text !== txt || (!M.res && !M.err && !M.busy)) return h + `<div class="row"><button id="mapGo" type="button">Look up on map</button><span class="muted">Sends this address (no name) to OpenStreetMap. Western Cape only.</span></div>`;
-  if (M.busy) return h + `<span class="muted">Looking it up on the map…</span>`;
-  if (M.err) return h + `<span class="err">${esc(M.err)}</span><div class="row"><button id="mapGo" type="button">Try again</button></div>`;
-  const { places, outside } = M.res;
-  if (!places.length) return h + (outside.length ? `<span>Not found in the Western Cape. Outside the Western Cape: ${esc(outside.join(" · "))}</span>` : `<span class="muted">The map could not find this address either. Ask for the suburb.</span>`);
-  const paths = [...new Set(places.flatMap(x => x.R.paths.map(P => P.path)))];
-  h += paths.length === 1 && places.every(x => x.R.paths.length === 1) ? `<span class="big">Map suggests: ${esc(PATH_NAME[paths[0]])}</span>`
-    : `<span class="big">The map found ${places.length === 1 ? "this place" : `${places.length} places`}: ask which</span>`;
-  h += `<ul>${places.map(x => `<li>${esc(x.label)} → ${x.R.paths.length ? x.R.paths.map(P => `<b>${esc(PATH_NAME[P.path])}</b>`).join(" or ") : "not on the drainage list"}</li>`).join("")}</ul>`;
-  return h + `<span class="muted">Map suggestion: check with the patient. The drainage list decides the pathway.</span>`;
-}
-async function mapGo() {
-  const txt = $("q").value;
-  if (M.busy || !txt.trim()) return;
-  Object.assign(M, { text: txt, busy: true, res: null, err: null }); render();
-  try { M.res = await mapLookup(txt); } catch (e) { M.err = e instanceof TypeError ? "Couldn't reach OpenStreetMap. Check the internet connection." : e.message; }
-  M.busy = false; if ($("q").value === txt) render();
-}
-$("out").addEventListener("click", ev => { if (ev.target.id === "mapGo") mapGo(); });
+$("out").addEventListener("click", ev => { if (ev.target.closest("[data-refs]")) $("refs").showModal(); });
 
 /* ---------- live drop-down of matching areas ---------- */
 let S = { k: 0, list: [] };
@@ -1337,7 +1304,7 @@ function renderFb(R) {
     return;
   }
   $("fb").innerHTML = !key ? "" : key === "?"
-    ? `<div class="card"><div class="row"><span>Know which hospital this area goes to?</span><button type="button" data-fb="add">Add this area</button></div></div>`
+    ? `<div class="card"><div class="row"><span>Not on our list yet. Send this area to the developer so it can be added?</span><button type="button" class="primary" data-fb="unfound">Send to developer</button><button type="button" data-fb="add">I know the hospital</button></div></div>`
     : `<div class="card"><div class="row"><span>Was this right?</span><button type="button" data-fb="correct">${ICON_OK}Yes, correct</button><button type="button" data-fb="wrong">${ICON_FLAG}No, flag it</button></div></div>`;
 }
 const ICON_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
@@ -1345,8 +1312,16 @@ const ICON_FLAG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 $("fb").addEventListener("click", ev => {
   const b = ev.target.closest("[data-fb]"); if (!b) return;
   const box = b.closest(".card");
-  if (b.dataset.fb === "add") {
-    const d = $("addArea"); d.open = true; d.querySelector("[name=area]").value = drainPlaceWords($("q").value);
+  const place = drainPlaceWords($("q").value);
+  if (b.dataset.fb === "unfound" && place) {   // one tap: only the place words, never numbers or streets
+    box.innerHTML = `<span role="status">Thank you! Sent to the developer.</span>`;
+    send({ type: "area", area: place, path: "Not known", note: "Searched in the app, not found", from: store("name") })
+      .then(sent => { if (!sent) box.innerHTML = `<span role="status">Thank you! ${QUEUED}</span>`; })
+      .catch(e => { box.innerHTML = `<span class="err">${esc(e.message)}</span>`; });
+    return;
+  }
+  if (b.dataset.fb === "add" || b.dataset.fb === "unfound") {
+    const d = $("addArea"); d.open = true; d.querySelector("[name=area]").value = place;
     d.scrollIntoView({ behavior: "smooth", block: "start" }); d.querySelector("[name=path]").focus({ preventScroll: true }); return;
   }
   if (b.dataset.fb === "border") {
