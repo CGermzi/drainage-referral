@@ -1085,7 +1085,7 @@ function drainLookup(address) {
     h.list.forEach(a => { if (!areas.some(x => x.area === a.area && x.path === a.path && x.code === a.code)) areas.push({ ...a, said: h.said }); });
     if (h.d) notes.push(`Read "${h.said}" as ${h.list.map(a => a.area).join(" / ")}.`);
     const ps = [...new Set(h.list.map(a => a.path))];
-    if (h.list.length > 1 && h.list.every(a => a.border)) asks.push(`Not on the confirmed drainage list: ${h.list[0].area} borders the ${[...new Set(h.list.map(a => DRAIN_HOSP[a.code]))].join(" / ")} drainage areas. Enquire the correct referral route.`);
+    if (h.list.length > 1 && h.list.every(a => a.border)) asks.push(BORDER_ASK);
     else if (ps.length > 1 || new Set(h.list.map(drainRoute)).size > 1) asks.push(`"${h.said}" can be ${h.list.map(a => `${a.area} (${drainRoute(a)})`).join(" or ")}. Ask which part they live in.`);
   });
   // postal codes: confirm the suburb, find it when only the code is given, or flag a code that belongs elsewhere
@@ -1155,13 +1155,19 @@ drainSetExtra([{"name": "Allenby Estate", "path": "VHW"}, {"name": "Diep River",
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// a border area (not on the confirmed list, between two drainage areas): we say we're not sure and ask staff to tell us
+const BORDER_ASK = "Please let us know the correct drainage: tap “Tell us the correct route” below.";
+const borderText = areas => { const names = [...new Set(areas.map(a => DRAIN_HOSP[a.code]))];
+  return `We're not sure where ${areas[0].area} drains. Based on our data it borders the ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} drainage areas.`; };
+const isBorder = R => R.paths.length > 0 && R.paths.every(P => P.areas.every(a => a.border));
+
 // while a name is still being typed ("Rond"), the areas the drop-down offers are the answer (3 letters or more)
 function drainPartial(txt) {
   const toks = drainNorm(String(txt).split(/[,\n]/).pop()).split(" ").filter(t => t && !/\d/.test(t)), S = drainSuggest(txt);
   if (!S.list.length || toks.slice(-S.k).join("").length < 3) return null;
   const all = drainIndex().areas.filter(a => S.list.some(s => s.area === a.area));   // every entry of each name (a border area has two)
   const paths = [...new Set(all.map(a => a.path))].map(path => ({ path, areas: all.filter(a => a.path === path) }));
-  const asks = [...new Set(all.filter(a => a.border).map(a => a.area))].map(n => `Not on the confirmed drainage list: ${n} borders the ${all.filter(a => a.area === n).map(a => DRAIN_HOSP[a.code]).join(" / ")} drainage areas. Enquire the correct referral route.`);
+  const asks = all.some(a => a.border) ? [BORDER_ASK] : [];
   return { paths, asks, notes: [], guesses: [], streetOnly: false, partial: true };
 }
 
@@ -1179,7 +1185,8 @@ function render() {
   const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
   const names = P => [...new Set(P.areas.map(a => a.area))].map(esc).join(", ");
   let h;
-  if (R.partial) h = R.paths.length === 1
+  if (isBorder(R)) h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Not confirmed</span><span>${esc(borderText(R.paths.flatMap(P => P.areas)))}</span>`;
+  else if (R.partial) h = R.paths.length === 1
     ? `<div class="card answer"><h2>Best match while typing</h2>${route(R.paths[0])}<span class="muted">Matches ${names(R.paths[0])}. Keep typing or tap a suggestion to confirm.</span>`
     : `<div class="card answer ask"><h2>Best match while typing</h2><span class="big">Keep typing: possible pathways</span><ul>${R.paths.map(P => `<li><b>${hop(P) ? esc(hop(P)) + " › " : ""}${esc(PATH_NAME[P.path])}</b>: ${names(P)}</li>`).join("")}</ul>`;
   else if (!R.paths.length) h = `<div class="card answer none"><h2>Referral pathway</h2><span class="big">Area not found</span><span>Ask the patient for their suburb, or the clinic or day hospital they normally attend.</span>`
@@ -1316,6 +1323,12 @@ function renderFb(R) {
   if (key === fbKey) return;
   fbKey = key;
   FB = R && R.paths.length ? { areas: R.paths.flatMap(P => P.areas.map(a => a.area)).join(", "), pathway: R.paths.map(P => PATH_NAME[P.path]).join(" or ") } : {};
+  if (R && !R.partial && isBorder(R)) {   // border area: ask for the right answer instead of "was this right?"
+    const all = R.paths.flatMap(P => P.areas);
+    FB = { areas: all[0].area, pathway: "Not confirmed: border of " + [...new Set(all.map(a => DRAIN_HOSP[a.code]))].join(" / "), border: all };
+    $("fb").innerHTML = `<div class="card"><div class="row"><span>Do you know where ${esc(all[0].area)} drains?</span><button type="button" class="primary" data-fb="border">Tell us the correct route</button></div></div>`;
+    return;
+  }
   $("fb").innerHTML = !key ? "" : key === "?"
     ? `<div class="card"><div class="row"><span>Know which hospital this area goes to?</span><button type="button" data-fb="add">Add this area</button></div></div>`
     : `<div class="card"><div class="row"><span>Was this right?</span><button type="button" data-fb="correct">${ICON_OK}Yes, correct</button><button type="button" data-fb="wrong">${ICON_FLAG}No, flag it</button></div></div>`;
@@ -1328,6 +1341,17 @@ $("fb").addEventListener("click", ev => {
   if (b.dataset.fb === "add") {
     const d = $("addArea"); d.open = true; d.querySelector("[name=area]").value = drainPlaceWords($("q").value);
     d.scrollIntoView({ behavior: "smooth", block: "start" }); d.querySelector("[name=path]").focus({ preventScroll: true }); return;
+  }
+  if (b.dataset.fb === "border") {
+    box.innerHTML = `<form class="form" data-type="feedback" data-thanks="Thank you. We'll check it and update the map."><b>Where does ${esc(FB.areas)} drain?</b>
+      <span class="muted">${esc(FB.pathway)}</span>
+      <input type="hidden" name="verdict" value="wrong"><input type="hidden" name="areas" value="${esc(FB.areas)}"><input type="hidden" name="pathway" value="${esc(FB.pathway)}">
+      <label>It drains to<select name="correct" required><option value="">Choose…</option>${FB.border.map(a => `<option value="${a.code}: ${esc(drainRoute(a))}">${esc(drainRoute(a))}</option>`).join("")}<option value="Somewhere else">Somewhere else (say where below)</option></select></label>
+      <label>How do you know? <span class="muted">(optional, no patient names)</span><textarea name="comment" rows="2" maxlength="500"></textarea></label>
+      <label>Your name <span class="muted">(optional)</span><input name="from" class="me" maxlength="100" autocomplete="name"></label>
+      <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="row"><button class="primary">Send</button><span class="msg muted" role="status"></span></div></form>`;
+    fillNames(); return;
   }
   if (b.dataset.fb === "wrong") {
     box.innerHTML = `<form class="form" data-type="feedback" data-thanks="Thank you. Flagged for review."><b>What should it be?</b>
