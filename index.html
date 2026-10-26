@@ -331,9 +331,9 @@ footer a { color: var(--accent); font-weight: 600 }
       <span class="muted">This app is only as good as its data. Please send us anything more detailed or more recent: a map, a list, or a photo of one. Leave your phone or email and we'll collect it from you.</span>
       <button class="primary" type="button" id="refSend">Send us newer data</button></div>
     <p class="muted">The pathways in this app were made from these references:</p>
-    <a class="ref" href="reference/drainage-areas.pdf" data-view="list"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span><span>Drainage areas list<small>3 pages · residential area and hospital</small></span></a>
+    <a class="ref" href="reference/drainage-areas.pdf" data-view="list"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span><span>Drainage areas list (2024)<small>3 pages · residential area and hospital</small></span></a>
     <a class="ref" href="reference/drainage-poster.jpg" data-view="poster"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></span><span>Groote Schuur / Mitchells Plain poster<small>Photo of the wall list</small></span></a>
-    <p class="muted">List last updated 25 Oct 2026.</p>
+    <p class="muted">List last updated 26 Oct 2026, from the 2024 drainage areas list.</p>
   </div>
 </dialog>
 <dialog id="viewer" class="full" aria-labelledby="viewerTitle">
@@ -355,15 +355,19 @@ const drainHospName = c => DRAIN_HOSP[c] + (/ EC$/.test(DRAIN_HOSP[c]) ? "" : " 
 // the first stop when it is not the referral hospital itself: "Karl Bremer Hospital › Tygerberg Hospital"
 const drainFirst = a => a.code && DRAIN_PATH[a.code] !== a.code ? drainHospName(a.code) : "";
 const drainRoute = a => (drainFirst(a) ? drainFirst(a) + " › " : "") + PATH_NAME[a.path];
-const DRAIN_DATA = `Athlone|GSH
+const DRAIN_DATA = `Amandelrug|KBH
+Amandelsig|KBH
+Athlone|GSH
 Athlone Industria|HEC
 Atlantis|WES
 Austinville|ERH
 Avondale|KBH
 Balvenie|TBH
 Barcelona|HEC
+Bardale Village|ERH
 Bay View|VHW
 Beacon Valley|MPH
+Beaconvale|TBH
 Belgravia|GSH
 Belhar|TBH
 Bellair|KBH
@@ -380,6 +384,7 @@ Blackheath|ERH
 Blommendal|KBH
 Blouberg|NSH
 Blue Downs|ERH
+Blueberry Hill|ERH
 Bongweni|KDH
 Bonnie Brae|KBH
 Bonny Brook|KBH
@@ -410,13 +415,15 @@ Crawford|GSH
 Crossroads (New)|HEC
 Crossroads (Old & Lower)|MPH
 Danarand|ERH
-De Kuilen|ERH
+De Duin|KBH
+De Kuilen|KBH
 De Tijger|KBH
 Delft|ERH
 Dennemere|ERH
 Des Hampden|KBH
 Devon Park Village|ERH
 Diepwater|ERH
+Door de Kraal|KBH
 Driftsands|ERH
 Du Noon|NSH
 Duinefontein|HEC
@@ -426,6 +433,7 @@ Edenpark|KBH
 Edgemead|KBH
 Eerste River|ERH
 Eindhoven|ERH
+Electric City|ERH
 Elfindale|VHW
 Elim|KBH
 Elnor|TBH
@@ -433,16 +441,22 @@ Elsies River|TBH
 Epping|TBH
 Eureka|TBH
 Europe|HEC
+Eversdal|KBH
+Fairdale|ERH
 Fairfield Estate|KBH
 Ferndale|KBH
 Fisantekraal|KBH
 Fish Hoek|FBH
 Florida|TBH
+Forest Glade|ERH
+Forest Heights|ERH
 Fountain Village|ERH
 Freedom Park|KDH
 Gardens|NSH
 Gatesville|GSH
 Gaylee|ERH
+Gersham|KBH
+Glenhaven|TBH
 Glenlily|KBH
 Goedemoed|KBH
 Goodwood|KBH
@@ -452,6 +466,7 @@ Green Point (Khaya)|KDH
 Greenfield|ERH
 Greenhaven|HEC
 Greenpoint (City Bowl)|NSH
+Gugulethu|HEC
 Guguletu (All NY Zones)|HEC
 Haasendal|KBH
 Hagley|ERH
@@ -460,15 +475,18 @@ Harare|KDH
 Harmony Village|MPH
 Hatton Estate|GSH
 Hazendal|GSH
+Heather Park|ERH
 Heideveld|HEC
 Heinz Park (Philippi)|MPH
 High Places|ERH
 Highbury|KBH
 Highgate|ERH
 Hindle Park|ERH
+Ho Heizen|KBH
 Houghton|ERH
 Hout Bay|VHW
 Ikwezi Park|KDH
+Jagtershof|KBH
 Joostenberg Vlakte|KBH
 Kaapsig|KBH
 Kalkfontein|KBH
@@ -476,16 +494,20 @@ Kanana|HEC
 Kenilworth|VHW
 Kensington|NSH
 Kewtown|GSH
+Khayelitsha|KDH
 Khayelitsha Site B|KDH
 Khayelitsha Site C|KDH
 Khayelitsha West|KDH
 Kirstenhof|VHW
+Kleinbosch|KBH
 Kleinvlei|ERH
+Klipdam|KBH
 Klipkop|TBH
 Kommetjie|VHW
 Kosovo|MPH
 Kraaifontein|KBH
 Kuils River|KBH
+Kuils River (N of M12)|KBH
 Kuyasa|KDH
 Langa|NSH
 Langeberg Ridge|KBH
@@ -497,6 +519,7 @@ Loevenstein|KBH
 Lotus River|VHW
 Lotus River (in Gugulethu)|HEC
 Lusaka|HEC
+Mabille Park|KBH
 Macassar|HBH
 Maitland|NSH
 Makhaya|KDH
@@ -505,6 +528,7 @@ Malibu Village|ERH
 Mandalay|MPH
 Mandela Park|KDH
 Manenberg|HEC
+Marconi Beam|NSH
 Marcus Garvey|MPH
 Matroosfontein|TBH
 Mau Mau|HEC
@@ -515,11 +539,11 @@ Mitchells Plain|MPH
 Modderdam|TBH
 Mont Clair|MPH
 Montague Gardens|NSH
-Montana|NSH
+Montana|TBH
 Monte Vista|KBH
 Montrose Park|MPH
-Morgenster (Mitchells Plain)|MPH
 Morgenster (Brackenfell)|KBH
+Morgenster (Mitchells Plain)|MPH
 Morgenster Hoogte|KBH
 Morningstar|KBH
 Mountview|GSH
@@ -539,6 +563,7 @@ NY (all zones)|HEC
 Nyanga|HEC
 Nyanga East|HEC
 Oakdale|KBH
+Oakdene|KBH
 Observatory|GSH
 Ocean View|VHW
 Okavango Park|KBH
@@ -546,6 +571,7 @@ Oranjezicht|NSH
 Ottery|VHW
 Paarden Island|NSH
 Palm Park|ERH
+Panorama|KBH
 Park Village|ERH
 Parow (N of Voortrekker)|KBH
 Parow (S of Voortrekker)|TBH
@@ -560,6 +586,7 @@ Pinati Estate|GSH
 Pinehurst|KBH
 Pinelands|GSH
 Plattekloof|KBH
+Plattekloof Glen|KBH
 Plumstead|VHW
 Portland|MPH
 Primrose Park|HEC
@@ -570,15 +597,20 @@ Ravensmead|TBH
 Retreat|VHW
 Richmond Estate|KBH
 Richwood|KBH
+Ridgeworth|KBH
 Riverton|TBH
 Rocklands|MPH
 Rondebosch|GSH
 Rondebosch East|GSH
+Rondevallei|ERH
 Roosendal|ERH
 Rosebank|GSH
+Rosedale|ERH
 Rotterdam|ERH
+Rouxville|KBH
 Rugby|NSH
 Ruiterwacht|TBH
+Russel's Rest|ERH
 Rustdal|ERH
 Rylands Estate|GSH
 Saalberau|TBH
@@ -589,6 +621,7 @@ Sarepta|KBH
 Scottsdene|KBH
 Sea Point|NSH
 Sherwood Park|HEC
+Sillwood Heights|ERH
 Silver City|MPH
 Silver Oaks|KBH
 Silvermine|VHW
@@ -605,12 +638,15 @@ Sonstraal Heights|KBH
 Springbok Park|KBH
 St Dumas|KBH
 Steenberg|VHW
+Stellenberg|KBH
+Stellenridge|KBH
 Stellenrust|ERH
 Strandfontein|VHW
 Stratford Green|ERH
 Summergreens|NSH
 Sunbird Park|ERH
 Sunnydale|VHW
+Sunset Glen|ERH
 Surrey Estate|HEC
 Sweet Home Farm|MPH
 Tableview|NSH
@@ -627,22 +663,27 @@ Tokai|VHW
 Tuscany Glen|ERH
 Tygerdal|KBH
 Uitsig|TBH
+UWC Res|TBH
 Valhalla|TBH
 Vanguard Estate|HEC
 Vasco Estate|KBH
+Voelvlei|KBH
 Voorbrug|ERH
 Vredehoek|NSH
 Vredenberg|KBH
 Wallacedene|KBH
 Wavecrest|VHW
 Welcome Estate|HEC
+Welgedacht|KBH
 Welgemoed|KBH
 Weltevreden Valley|MPH
+Wembley Park|ERH
 Wesbank|ERH
 Westbeach|NSH
 Westgate|MPH
 Westlake|VHW
 Westridge|MPH
+Wimbledon Estate|ERH
 Windermere|NSH
 Windsor Park|KBH
 Woodlands|MPH
@@ -655,8 +696,6 @@ Zevendal|KBH
 Zevenwacht|KBH
 Zonnendal|KBH
 Zoo Park|KBH
-Khayelitsha|KDH
-Gugulethu|HEC
 Malmesbury|PAA|West Coast|
 Piketberg|PAA|West Coast|
 Vredendal|PAA|West Coast|
@@ -1016,7 +1055,7 @@ const DRAIN_ALIAS = { "Lentegeur": ["lenteguer", "lentegeuer"], "The Leagues": [
   "Mitchells Plain": ["mitchell s plain", "m plain"], "New Rest Squatter Camp": ["new rest"], "Heinz Park (Philippi)": ["heinz park"], "Khayelitsha": ["khayalitsha", "khayelitsa"],
   "Never Neva": ["never never"], "Sea Point": ["seapoint"], "Primrose Park": ["primose park"], "Saalberau": ["salberau"], "Bonteheuwel": ["bonteheuvel"],
   "Manenberg": ["manenburg"], "Hanover Park": ["hannover park"], "Velddrif": ["veldrif"], "Samora Machel": ["samora"], "Bettys Bay": ["betty s bay"], "Plettenberg Bay": ["plett"],
-  "Blouberg": ["bloubergstrand"], "Gugulethu": ["gugs"], "Morgenster Hoogte": ["morgenster heights"], "Parowvallei": ["parow valley"] };
+  "Blouberg": ["bloubergstrand"], "Gugulethu": ["gugs"], "Morgenster Hoogte": ["morgenster heights"], "Parowvallei": ["parow valley", "parowvalley"], "UWC Res": ["uwc residence", "uwc"] };
 const DRAIN_STREET = new Set("street st str road rd avenue ave av crescent cres cr close cl drive dr way lane ln circle cir court ct walk place pl boulevard blvd highway hwy terrace tce grove mews link".split(" "));
 // address words that are never a place name (kept out of the spelling-mistake match)
 const DRAIN_STOP = new Set("cape town western south africa rsa wc unit flat house no number block section ext extension phase erf the and of in at near behind next to".split(" "));
@@ -1169,9 +1208,9 @@ const borderText = areas => { const names = [...new Set(areas.map(a => DRAIN_HOS
   return `${areas[0].area} is a border area between the ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} drainage areas. Its drainage is undefined, so the route can't be given with confidence.`; };
 // where an answer comes from, shown under it
 const srcOf = a => a.border ? "drainage map (border area)" : a.district === "Added by you" ? "confirmed by the developer"
-  : a.district ? (a.note ? "estimate, not confirmed" : "district referral pathways") : "reference drainage list and poster";
+  : a.district ? (a.note ? "estimate, not confirmed" : "district referral pathways") : "reference drainage list (2024) and poster";
 const srcLine = R => { const s = [...new Set(R.paths.flatMap(P => P.areas.map(srcOf)))];
-  return `<span class="muted src">Source: ${esc(s.join("; "))}${s.includes("reference drainage list and poster") ? ` <button type="button" class="linkish" data-refs>View</button>` : ""}</span>`; };
+  return `<span class="muted src">Source: ${esc(s.join("; "))}${s.includes("reference drainage list (2024) and poster") ? ` <button type="button" class="linkish" data-refs>View</button>` : ""}</span>`; };
 const isBorder = R => R.paths.length > 0 && R.paths.every(P => P.areas.every(a => a.border));
 
 // while a name is still being typed ("Rond"), the areas the drop-down offers are the answer (3 letters or more)
@@ -1499,7 +1538,7 @@ document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", ev 
 $("refBtn").addEventListener("click", () => $("refs").showModal());
 // the references open inside the app as pictures: PDFs download on Android, and a new tab would leave a home-screen app
 const REFS = {
-  list: { title: "Drainage areas list", pages: [1, 2, 3].map(n => [`reference/drainage-areas-${n}.jpg`, `Drainage areas list, page ${n} of 3`]),
+  list: { title: "Drainage areas list (2024)", pages: [1, 2, 3].map(n => [`reference/drainage-areas-${n}.jpg`, `Drainage areas list 2024, page ${n} of 3`]),
     extra: `<a href="reference/drainage-areas.pdf" download>Download the original PDF</a>` },
   poster: { title: "Wall poster", pages: [["reference/drainage-poster.jpg", "Groote Schuur and Mitchells Plain drainage poster"]], extra: "" } };
 document.querySelectorAll("[data-view]").forEach(a => a.addEventListener("click", ev => {
