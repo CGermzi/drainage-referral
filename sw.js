@@ -1,6 +1,6 @@
 // Keeps the app working without signal. The page comes from the internet when there is signal (so updates arrive)
 // and from the copy saved on the phone when there isn't. Change VERSION when the CORE list changes.
-const VERSION = "v3";
+const VERSION = "v4";
 const CORE = ["./", "index.html", "manifest.webmanifest", "logo.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png",
   "reference/drainage-areas-1.jpg", "reference/drainage-areas-2.jpg", "reference/drainage-areas-3.jpg", "reference/drainage-poster.jpg"];
 

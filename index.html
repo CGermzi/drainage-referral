@@ -28,19 +28,21 @@
     On a phone: open the link and tap the green "Add to home screen" button at the top.
       Android: the phone's own install box opens, one more tap. iPhone: Apple allows no install button, so it shows the 3 steps.
 
-  UPDATING THE LIST (edit this file, save, upload again)
-    Find the line starting  const DRAIN_DATA  : one area per line.
-      Cape Town metro:  Area|HOSPITAL         e.g.  Athlone|GSH
-        HOSPITAL is the drainage hospital: GSH Groote Schuur, VHW Victoria, NSH New Somerset, MPH Mitchells Plain,
-        HEC Heideveld (goes to Mitchells Plain), TBH Tygerberg, KDH Khayelitsha, HBH Helderberg, KBH Karl Bremer,
-        ERH Eerste River (these four go to Tygerberg), FBH False Bay (goes to Groote Schuur), WES Wesfleur (goes to New Somerset).
-      Outside the metro:  Area|PATHWAY|District|note     e.g.  Velddrif|NSH|West Coast|rough rule: coast side of the N7
-        PATHWAY: GSH, VHW, NSH, MPH, TBH, PAA (Paarl), WOR (Worcester), CAL (Caledon, then Worcester), or CWD / OVD / GRD / CKD (pathway not set yet).
-        A note makes the page ask the user to check before referring.
+  UPDATING THE LIST
+    The answers come from the drainage review map: change them on the map, then ask Claude to export the map into this file
+    (it rewrites the line starting  const DRAIN_DATA ). One area per line:  Area|HOSPITAL|source|flags|other names
+        e.g.  Athlone|GSH|2024 drainage list (PDF)||
+      HOSPITAL is the first stop: GSH Groote Schuur, VHW Victoria, NSH New Somerset, MPH Mitchells Plain, TBH Tygerberg,
+        HEC Heideveld (goes to Mitchells Plain), KDH Khayelitsha, HBH Helderberg, KBH Karl Bremer, ERH Eerste River and
+        PAA Paarl (these five go to Tygerberg), FBH False Bay and GEO George (go to Groote Schuur), WES Wesfleur (goes to
+        New Somerset), WOR Worcester (then Tygerberg), CAL Caledon and HER Hermanus (go to Worcester); CWD / OVD / GRD / CKD:
+        pathway not set yet. Two joined by + (HBH+KDH) when it can be either.
+      source is shown under the answer. flags: e = estimate, not confirmed (the page says so and asks staff who know),
+        i = informal settlement, b = border area. other names are separated by ;
     Postal codes: the line starting  const DRAIN_POST_DATA , one per line:  code|Suburb   e.g.  7785|Philippi
     Other spellings of a name: const DRAIN_ALIAS = { "Philippi": ["phillipi", "philipi"], ... }
     Quick additions: near the end of the list section,  drainSetExtra([{"name": "Parklands", "path": "NSH"}, ...]);
-      add  {"name": "New Area", "path": "VHW"}  (path = one of the PATHWAY codes above).
+      add  {"name": "New Area", "path": "VHW"}  (path = one of the HOSPITAL codes above).
     Hospital names shown on screen: const PATH_NAME = { GSH: "Groote Schuur Hospital", ... }
     Change the "List last updated" date in the Reference data panel (search for: last updated).
     Suggested areas arrive in the Google Sheet "Drainage app DATA", tab "New areas": choose "Approved" in "Your decision",
@@ -333,7 +335,7 @@ footer a { color: var(--accent); font-weight: 600 }
     <p class="muted">The pathways in this app were made from these references:</p>
     <a class="ref" href="reference/drainage-areas.pdf" data-view="list"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span><span>Drainage areas list (2024)<small>3 pages · residential area and hospital</small></span></a>
     <a class="ref" href="reference/drainage-poster.jpg" data-view="poster"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></span><span>Groote Schuur / Mitchells Plain poster<small>Photo of the wall list</small></span></a>
-    <p class="muted">List last updated 26 Oct 2026, from the 2024 drainage areas list.</p>
+    <p class="muted">Answers last updated 29 Oct 2026, from the drainage map (the 2024 drainage areas list, the developer's map review and staff reports).</p>
   </div>
 </dialog>
 <dialog id="viewer" class="full" aria-labelledby="viewerTitle">
@@ -344,483 +346,1436 @@ footer a { color: var(--accent); font-weight: 600 }
 /* drainage:start */
 const DRAIN_HOSP = { GSH: "Groote Schuur", HEC: "Heideveld EC", MPH: "Mitchells Plain", HBH: "Helderberg", KBH: "Karl Bremer", ERH: "Eerste River",
   TBH: "Tygerberg", VHW: "Victoria (Wynberg)", NSH: "New Somerset", KDH: "Khayelitsha", FBH: "False Bay", WES: "Wesfleur",
+  PAA: "Paarl", WOR: "Worcester", CAL: "Caledon", HER: "Hermanus", GEO: "George",
   WCD: "West Coast district", CWD: "Cape Winelands district", OVD: "Overberg district", GRD: "Garden Route district", CKD: "Central Karoo district" };
 const DRAIN_PATH = { GSH: "GSH", KDH: "TBH", FBH: "GSH", VHW: "VHW", NSH: "NSH", MPH: "MPH", HEC: "MPH", HBH: "TBH", KBH: "TBH", ERH: "TBH", TBH: "TBH", WES: "NSH",
+  PAA: "TBH", WOR: "WOR", CAL: "WOR", HER: "WOR", GEO: "GSH",
   WCD: "WCD", CWD: "CWD", OVD: "OVD", GRD: "GRD", CKD: "CKD" };
 const PATH_NAME = { GSH: "Groote Schuur Hospital", VHW: "Victoria Hospital (Wynberg)", NSH: "New Somerset Hospital (then Groote Schuur)", MPH: "Mitchells Plain Hospital",
-  TBH: "Tygerberg Hospital", PAA: "Paarl Hospital (then Tygerberg)", WOR: "Worcester Hospital (then Tygerberg)", CAL: "Caledon Hospital (then Worcester, then Tygerberg)",
+  TBH: "Tygerberg Hospital", WOR: "Worcester Hospital (then Tygerberg)",
   CWD: "Cape Winelands: Paarl or Worcester, path not set", OVD: "Overberg: referral path not set yet", GRD: "Garden Route: referral path not set yet", CKD: "Central Karoo: referral path not set yet" };
 const pathSet = p => !/not set/.test(PATH_NAME[p] || "not set");   // false for the districts with no referral path yet
 const drainHospName = c => DRAIN_HOSP[c] + (/ EC$/.test(DRAIN_HOSP[c]) ? "" : " Hospital");
 // the first stop when it is not the referral hospital itself: "Karl Bremer Hospital › Tygerberg Hospital"
 const drainFirst = a => a.code && DRAIN_PATH[a.code] !== a.code ? drainHospName(a.code) : "";
 const drainRoute = a => (drainFirst(a) ? drainFirst(a) + " › " : "") + PATH_NAME[a.path];
-const DRAIN_DATA = `Amandelrug|KBH
-Amandelsig|KBH
-Athlone|GSH
-Athlone Industria|HEC
-Atlantis|WES
-Austinville|ERH
-Avondale|KBH
-Balvenie|TBH
-Barcelona|HEC
-Bardale Village|ERH
-Bay View|VHW
-Beacon Valley|MPH
-Beaconvale|TBH
-Belgravia|GSH
-Belhar|TBH
-Bellair|KBH
-Bellville (N of Voortrekker)|KBH
-Bellville South|TBH
-Belmont Park|KBH
-Belthorne Estate|GSH
-Bergvliet|VHW
-Bernadino Heights|KBH
-Birgundy|KBH
-Bishop Lavis|TBH
-Bishopscourt|VHW
-Blackheath|ERH
-Blommendal|KBH
-Blouberg|NSH
-Blue Downs|ERH
-Blueberry Hill|ERH
-Bongweni|KDH
-Bonnie Brae|KBH
-Bonny Brook|KBH
-Bonteheuwel|NSH
-Bosonia|KBH
-Boston|KBH
-Bothasig|KBH
-Brackenfell|KBH
-Brandwag|KBH
-Brantwood|KBH
-Bridgetown|GSH
-Brooklyn|NSH
-Browns Farm|MPH
-Camelot|ERH
-Camps Bay|NSH
-Capricorn|VHW
-Century City|NSH
-Chrismar|KBH
-Churchill Estate|KBH
-Claremont|GSH
-Clarkes|TBH
-Clovelly|VHW
-Colorado Park|MPH
-Connaught Estate|TBH
-Constantia|VHW
-Cravenby|TBH
-Crawford|GSH
-Crossroads (New)|HEC
-Crossroads (Old & Lower)|MPH
-Danarand|ERH
-De Duin|KBH
-De Kuilen|KBH
-De Tijger|KBH
-Delft|ERH
-Dennemere|ERH
-Des Hampden|KBH
-Devon Park Village|ERH
-Diepwater|ERH
-Door de Kraal|KBH
-Driftsands|ERH
-Du Noon|NSH
-Duinefontein|HEC
-Durbanville|KBH
-Eastridge|MPH
-Edenpark|KBH
-Edgemead|KBH
-Eerste River|ERH
-Eindhoven|ERH
-Electric City|ERH
-Elfindale|VHW
-Elim|KBH
-Elnor|TBH
-Elsies River|TBH
-Epping|TBH
-Eureka|TBH
-Europe|HEC
-Eversdal|KBH
-Fairdale|ERH
-Fairfield Estate|KBH
-Ferndale|KBH
-Fisantekraal|KBH
-Fish Hoek|FBH
-Florida|TBH
-Forest Glade|ERH
-Forest Heights|ERH
-Fountain Village|ERH
-Freedom Park|KDH
-Gardens|NSH
-Gatesville|GSH
-Gaylee|ERH
-Gersham|KBH
-Glenhaven|TBH
-Glenlily|KBH
-Goedemoed|KBH
-Goodwood|KBH
-Graceland|KDH
-Grassy Park|VHW
-Green Point (Khaya)|KDH
-Greenfield|ERH
-Greenhaven|HEC
-Greenpoint (City Bowl)|NSH
-Gugulethu|HEC
-Guguletu (All NY Zones)|HEC
-Haasendal|KBH
-Hagley|ERH
-Hanover Park|GSH
-Harare|KDH
-Harmony Village|MPH
-Hatton Estate|GSH
-Hazendal|GSH
-Heather Park|ERH
-Heideveld|HEC
-Heinz Park (Philippi)|MPH
-High Places|ERH
-Highbury|KBH
-Highgate|ERH
-Hindle Park|ERH
-Ho Heizen|KBH
-Houghton|ERH
-Hout Bay|VHW
-Ikwezi Park|KDH
-Jagtershof|KBH
-Joostenberg Vlakte|KBH
-Kaapsig|KBH
-Kalkfontein|KBH
-Kanana|HEC
-Kenilworth|VHW
-Kensington|NSH
-Kewtown|GSH
-Khayelitsha|KDH
-Khayelitsha Site B|KDH
-Khayelitsha Site C|KDH
-Khayelitsha West|KDH
-Kirstenhof|VHW
-Kleinbosch|KBH
-Kleinvlei|ERH
-Klipdam|KBH
-Klipkop|TBH
-Kommetjie|VHW
-Kosovo|MPH
-Kraaifontein|KBH
-Kuils River|KBH
-Kuils River (N of M12)|KBH
-Kuyasa|KDH
-Langa|NSH
-Langeberg Ridge|KBH
-Lansdowne|GSH
-Lentegeur|MPH
-Lingen|KBH
-Litha Park|KDH
-Loevenstein|KBH
-Lotus River|VHW
-Lotus River (in Gugulethu)|HEC
-Lusaka|HEC
-Mabille Park|KBH
-Macassar|HBH
-Maitland|NSH
-Makhaya|KDH
-Makhaza|KDH
-Malibu Village|ERH
-Mandalay|MPH
-Mandela Park|KDH
-Manenberg|HEC
-Marconi Beam|NSH
-Marcus Garvey|MPH
-Matroosfontein|TBH
-Mau Mau|HEC
-Melkbosstrand|NSH
-Mfuleni|KDH
-Milnerton|NSH
-Mitchells Plain|MPH
-Modderdam|TBH
-Mont Clair|MPH
-Montague Gardens|NSH
-Montana|TBH
-Monte Vista|KBH
-Montrose Park|MPH
-Morgenster (Brackenfell)|KBH
-Morgenster (Mitchells Plain)|MPH
-Morgenster Hoogte|KBH
-Morningstar|KBH
-Mountview|GSH
-Mowbray|GSH
-Muizenberg|VHW
-Ndabeni|GSH
-Never Neva|MPH
-New Crossroads (Nyanga)|HEC
-New Rest Squatter Camp|HEC
-Newfields|GSH
-Newlands|GSH
-Nobuhle|KDH
-Noordhoek|VHW
-Northpine|KBH
-Norwood|TBH
-NY (all zones)|HEC
-Nyanga|HEC
-Nyanga East|HEC
-Oakdale|KBH
-Oakdene|KBH
-Observatory|GSH
-Ocean View|VHW
-Okavango Park|KBH
-Oranjezicht|NSH
-Ottery|VHW
-Paarden Island|NSH
-Palm Park|ERH
-Panorama|KBH
-Park Village|ERH
-Parow (N of Voortrekker)|KBH
-Parow (S of Voortrekker)|TBH
-Parowvallei|TBH
-Peerless Park|KBH
-Pelican Heights|VHW
-Pelican Park|VHW
-Penhill|ERH
-Philippi|MPH
-Phola Park|MPH
-Pinati Estate|GSH
-Pinehurst|KBH
-Pinelands|GSH
-Plattekloof|KBH
-Plattekloof Glen|KBH
-Plumstead|VHW
-Portland|MPH
-Primrose Park|HEC
-Protea Heights|KBH
-Protea Valley|KBH
-Protea Village|KBH
-Ravensmead|TBH
-Retreat|VHW
-Richmond Estate|KBH
-Richwood|KBH
-Ridgeworth|KBH
-Riverton|TBH
-Rocklands|MPH
-Rondebosch|GSH
-Rondebosch East|GSH
-Rondevallei|ERH
-Roosendal|ERH
-Rosebank|GSH
-Rosedale|ERH
-Rotterdam|ERH
-Rouxville|KBH
-Rugby|NSH
-Ruiterwacht|TBH
-Russel's Rest|ERH
-Rustdal|ERH
-Rylands Estate|GSH
-Saalberau|TBH
-Salt River|GSH
-Samora Machel|MPH
-San Remo|VHW
-Sarepta|KBH
-Scottsdene|KBH
-Sea Point|NSH
-Sherwood Park|HEC
-Sillwood Heights|ERH
-Silver City|MPH
-Silver Oaks|KBH
-Silvermine|VHW
-Silversands|ERH
-Silverstream|HEC
-Silvertown|KDH
-Simons Town|VHW
-Siyahlala|MPH
-Somerset West|HBH
-Soneike|KBH
-Sonkring|KBH
-Sonnendal|KBH
-Sonstraal Heights|KBH
-Springbok Park|KBH
-St Dumas|KBH
-Steenberg|VHW
-Stellenberg|KBH
-Stellenridge|KBH
-Stellenrust|ERH
-Strandfontein|VHW
-Stratford Green|ERH
-Summergreens|NSH
-Sunbird Park|ERH
-Sunnydale|VHW
-Sunset Glen|ERH
-Surrey Estate|HEC
-Sweet Home Farm|MPH
-Tableview|NSH
-Tafelsig|MPH
-Tambo Square|HEC
-Tambo Village|HEC
-Tembani|KDH
-The Hague|ERH
-The Leagues|MPH
-The Range|TBH
-The Wines|ERH
-Thornton|NSH
-Tokai|VHW
-Tuscany Glen|ERH
-Tygerdal|KBH
-Uitsig|TBH
-UWC Res|TBH
-Valhalla|TBH
-Vanguard Estate|HEC
-Vasco Estate|KBH
-Voelvlei|KBH
-Voorbrug|ERH
-Vredehoek|NSH
-Vredenberg|KBH
-Wallacedene|KBH
-Wavecrest|VHW
-Welcome Estate|HEC
-Welgedacht|KBH
-Welgemoed|KBH
-Weltevreden Valley|MPH
-Wembley Park|ERH
-Wesbank|ERH
-Westbeach|NSH
-Westgate|MPH
-Westlake|VHW
-Westridge|MPH
-Wimbledon Estate|ERH
-Windermere|NSH
-Windsor Park|KBH
-Woodlands|MPH
-Woodstock|GSH
-Wynberg|VHW
-Youngsfield|VHW
-Ysterplaat|NSH
-Zeekoevlei|VHW
-Zevendal|KBH
-Zevenwacht|KBH
-Zonnendal|KBH
-Zoo Park|KBH
-Malmesbury|PAA|West Coast|
-Piketberg|PAA|West Coast|
-Vredendal|PAA|West Coast|
-Velddrif|NSH|West Coast|rough rule: coast side of the N7
-Vredenburg|NSH|West Coast|rough rule: coast side of the N7
-Saldanha|NSH|West Coast|rough rule: coast side of the N7
-Langebaan|NSH|West Coast|rough rule: coast side of the N7
-Paternoster|NSH|West Coast|rough rule: coast side of the N7
-St Helena Bay|NSH|West Coast|rough rule: coast side of the N7
-Hopefield|NSH|West Coast|rough rule: coast side of the N7
-Darling|PAA|West Coast|
-Yzerfontein|PAA|West Coast|
-Lamberts Bay|NSH|West Coast|rough rule: coast side of the N7
-Elands Bay|NSH|West Coast|rough rule: coast side of the N7
-Graafwater|NSH|West Coast|rough rule: coast side of the N7
-Aurora|NSH|West Coast|rough rule: coast side of the N7
-Moorreesburg|PAA|West Coast|
-Porterville|PAA|West Coast|rough rule: inland of the N7
-Riebeek Kasteel|PAA|West Coast|
-Riebeek West|PAA|West Coast|
-Koringberg|PAA|West Coast|
-Citrusdal|PAA|West Coast|rough rule: inland of the N7
-Clanwilliam|PAA|West Coast|rough rule: inland of the N7
-Abbotsdale|PAA|West Coast|
-Chatsworth|PAA|West Coast|
-Kalbaskraal|PAA|West Coast|
-Lutzville|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
-Ebenhaeser|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
-Doringbaai|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
-Klawer|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
-Vanrhynsdorp|PAA|West Coast|near Vredendal, which goes to Paarl (not confirmed)
-West Coast|NSH|West Coast|rough rule: coast side of the N7
-West Coast|PAA|West Coast|rough rule: inland of the N7
-Stellenbosch|PAA|Cape Winelands|
-Franschhoek|PAA|Cape Winelands|
-Paarl|PAA|Cape Winelands|
-Wellington|PAA|Cape Winelands|
-Pniel|PAA|Cape Winelands|
-Kayamandi|PAA|Cape Winelands|
-Cloetesville|PAA|Cape Winelands|
-Idas Valley|PAA|Cape Winelands|
-Klapmuts|PAA|Cape Winelands|
-Mbekweni|PAA|Cape Winelands|
-Saron|PAA|Cape Winelands|
-Gouda|PAA|Cape Winelands|
-Worcester|WOR|Cape Winelands|
-Zwelethemba|WOR|Cape Winelands|Worcester's own area (not confirmed)
-Avian Park|WOR|Cape Winelands|Worcester's own area (not confirmed)
-Rawsonville|WOR|Cape Winelands|Worcester's own area (not confirmed)
-De Doorns|WOR|Cape Winelands|Worcester's own area (not confirmed)
-Touws River|WOR|Cape Winelands|Worcester's own area (not confirmed)
-Robertson|WOR|Cape Winelands|probably Worcester: exact drainage not confirmed
-Montagu|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
-Bonnievale|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
-McGregor|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
-Ashton|WOR|Cape Winelands|near Robertson, probably Worcester (not confirmed)
-Ceres|CWD|Cape Winelands|
-Tulbagh|CWD|Cape Winelands|
-Wolseley|CWD|Cape Winelands|
-Prince Alfred Hamlet|CWD|Cape Winelands|
-Op die Berg|CWD|Cape Winelands|
-Nduli|CWD|Cape Winelands|
-Cape Winelands|CWD|Cape Winelands|
-Caledon|CAL|Overberg|
-Hermanus|CAL|Overberg|
-Grabouw|OVD|Overberg|
-Bredasdorp|OVD|Overberg|
-Swellendam|OVD|Overberg|
-Villiersdorp|OVD|Overberg|
-Botrivier|OVD|Overberg|
-Bot River|OVD|Overberg|
-Kleinmond|OVD|Overberg|
-Gansbaai|OVD|Overberg|
-Napier|OVD|Overberg|
-Riviersonderend|OVD|Overberg|
-Struisbaai|OVD|Overberg|
-Stanford|OVD|Overberg|
-Barrydale|OVD|Overberg|
-Greyton|OVD|Overberg|
-Genadendal|OVD|Overberg|
-Bettys Bay|OVD|Overberg|
-Pringle Bay|OVD|Overberg|
-Elgin|OVD|Overberg|
-Arniston|OVD|Overberg|
-Suurbraak|OVD|Overberg|
-Zwelihle|CAL|Overberg|part of the Hermanus area (not confirmed)
-Hawston|CAL|Overberg|part of the Hermanus area (not confirmed)
-Onrus|CAL|Overberg|part of the Hermanus area (not confirmed)
-Sandbaai|CAL|Overberg|part of the Hermanus area (not confirmed)
-Pearly Beach|OVD|Overberg|
-Overberg|OVD|Overberg|
-George|GSH|Garden Route|
-Knysna|GRD|Garden Route|
-Mossel Bay|GRD|Garden Route|
-Oudtshoorn|GRD|Garden Route|
-Plettenberg Bay|GRD|Garden Route|
-Riversdale|GRD|Garden Route|
-Heidelberg|GRD|Garden Route|
-Stilbaai|GRD|Garden Route|
-Still Bay|GRD|Garden Route|
-Albertinia|GRD|Garden Route|
-Wilderness|GRD|Garden Route|
-Sedgefield|GRD|Garden Route|
-Calitzdorp|GRD|Garden Route|
-Ladismith|GRD|Garden Route|
-Uniondale|GRD|Garden Route|
-Great Brak River|GRD|Garden Route|
-Hartenbos|GRD|Garden Route|
-Haarlem|GRD|Garden Route|
-Dysselsdorp|GRD|Garden Route|
-De Rust|GRD|Garden Route|
-Thembalethu|GSH|Garden Route|part of George (not confirmed)
-Pacaltsdorp|GSH|Garden Route|part of George (not confirmed)
-Kwanokuthula|GRD|Garden Route|
-Kranshoek|GRD|Garden Route|
-Garden Route|GRD|Garden Route|
-Beaufort West|CKD|Central Karoo|
-Laingsburg|CKD|Central Karoo|
-Prince Albert|CKD|Central Karoo|
-Murraysburg|CKD|Central Karoo|
-Merweville|CKD|Central Karoo|
-Leeu Gamka|CKD|Central Karoo|
-Nelspoort|CKD|Central Karoo|
-Matjiesfontein|CKD|Central Karoo|
-Central Karoo|CKD|Central Karoo|`;
+const DRAIN_DATA = `4 In 1|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|Wallacedene 14;J Section
+Aan De Wijnlanden Estate|ERH|inferred: surrounded by Eerste River suburbs (De Wijnlanden Estate, Eersterivier Industria); no touching suburb goes elsewhere||
+Abbotsdale|PAA|district referral pathways||
+Acacia Park|NSH|inferred: on the New Somerset side of M7 Jakes Gerwel Drive / N7; touching suburbs on its side go to New Somerset (Wingfield, Windermere, Summer Greens, Kensington and 2 more); across the line is Karl Bremer||
+Acacia Road|VHW|inferred: lies within Lotus River, which goes to Victoria (Wynberg)|i|Acacia Park - Parkwood
+Admirals Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Adriaanse|TBH|confirmed by the developer on the map||
+Agste Laan - Valhalla Park|TBH|estimate from the map, not confirmed: neighbouring areas (Nooitgedacht) go there|ie|
+Airport|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads, Philippi) go there|e|
+Airport City|ERH|confirmed by the developer on the map||
+Albertinia|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Amanda Glen|KBH|inferred: surrounded by Karl Bremer suburbs (Chantecler, Eversdal, Vredekloof, Stellenryk and 2 more); no touching suburb goes elsewhere||
+Amandelrug|KBH|2024 drainage list (PDF)||
+Amandelsig|KBH|2024 drainage list (PDF)||
+Amy Biehl|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Anchorage Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Annandale|KBH|inferred: surrounded by Karl Bremer suburbs (Soneike Ii, Rouxville, Amandelrug, Brandwag and 2 more); no touching suburb goes elsewhere||
+Annandale Farm|KBH|inferred: on the Karl Bremer side of N7; touching suburbs on its side go to Karl Bremer (Richwood, Burgundy Estate, De Grendel Farm); across the line is New Somerset||
+Antilles/Cayman Beach|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Appelboord|TBH|estimate from the map, not confirmed: neighbouring areas (Parow Industria) go there|ie|
+Arauna|KBH|inferred: surrounded by Karl Bremer suburbs (Springbokpark, Edenpark, Brackenfell Central, Morgenster Heights); no touching suburb goes elsewhere||
+Area K|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Never Never
+Arniston|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Asanda|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Ashton|WOR|confirmed by the developer on the map||
+Asla Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+AT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|AT Section 1;ATSection 2;AT Section 3;Bongweni Lansdowne Road Reserve 1;AT Section 4
+Athlone|GSH|2024 drainage list (PDF)||
+Atlantis Farms|NSH|the informal settlements also called this (Rondeberg, Meadowvale Farm) go there: estimate, not confirmed|ie|
+Atlantis Industrial|WES|2024 drainage list (PDF)||
+Atlantis Pockets|WES+NSH|the informal settlements also called this (Dassenberg Drive, Pine Grove Farm, Saxon World, Rasta Camp - Atlantis) go to different hospitals|ie|
+Atlas Gardens Business Park|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Audas Estate|HBH|inferred: surrounded by Helderberg suburbs (Somerset West Country Club, Somerset West); no touching suburb goes elsewhere||
+Aurora (Northern sub-district)|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Aurora (West Coast town)|NSH|confirmed by the developer on the map||
+Austinville|ERH|2024 drainage list (PDF)||
+Avalon Estate|KBH|inferred: surrounded by Karl Bremer suburbs (Pinehurst, Kraaifontein); no touching suburb goes elsewhere||
+Avian Park|WOR|confirmed by the developer on the map||
+Avon|TBH|confirmed by the developer on the map||
+Avondale - Parow|KBH|2024 drainage list (PDF)||
+Avondale - Wesfleur|WES|confirmed by the developer on the map||
+Avonwood|TBH|inferred: surrounded by Tygerberg suburbs (Connaught, Balvenie, Cravenby, Beaconvale and 2 more); no touching suburb goes elsewhere||
+B Longo Road|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Balvenie|TBH|confirmed by the developer on the map||
+Bantry Bay|NSH|confirmed by the developer on the map||
+Barcelona/ Europe/ Vukuzenzele|HEC|2024 drainage list (PDF)|i|Vukuzenzele
+Barnet Molokwana Corner|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela, Sabata Dalindyebo Square, Driftsands) go there|e|
+Baronetcy Estate|KBH|inferred: surrounded by Karl Bremer suburbs (De Grendel Farm, Welgelegen, Welgedacht, Plattekloof 3); no touching suburb goes elsewhere||
+Barrydale|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+BBT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|
+Beacon Hill|WES|confirmed by the developer on the map||
+Beacon Valley|MPH|2024 drainage list (PDF)||
+Beaconvale|TBH|confirmed by the developer on the map||
+Beaufort West|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Bekela|NSH|estimate from the map, not confirmed: neighbouring areas (Joe Slovo Park) go there|ie|Bekela 1;Bekela 2
+Bel'Aire|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Belgravia|GSH|2024 drainage list (PDF)||
+Belgravia -Bellville|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Belhar Ext 1|TBH|2024 drainage list (PDF)||
+Belhar Ext 10|TBH|2024 drainage list (PDF)||
+Belhar Ext 11|TBH|2024 drainage list (PDF)||
+Belhar Ext 12|TBH|2024 drainage list (PDF)||
+Belhar Ext 13|TBH|2024 drainage list (PDF)||
+Belhar Ext 14|TBH|2024 drainage list (PDF)||
+Belhar Ext 15|TBH|2024 drainage list (PDF)||
+Belhar Ext 16|TBH|2024 drainage list (PDF)||
+Belhar Ext 17|TBH|2024 drainage list (PDF)||
+Belhar Ext 18|TBH|2024 drainage list (PDF)||
+Belhar Ext 19|TBH|2024 drainage list (PDF)||
+Belhar Ext 2|TBH|2024 drainage list (PDF)||
+Belhar Ext 20|TBH|2024 drainage list (PDF)||
+Belhar Ext 21|TBH|2024 drainage list (PDF)||
+Belhar Ext 22|TBH|2024 drainage list (PDF)||
+Belhar Ext 23|TBH|2024 drainage list (PDF)||
+Belhar Ext 3|TBH|2024 drainage list (PDF)||
+Belhar Ext 4|TBH|2024 drainage list (PDF)||
+Belhar Ext 5|TBH|2024 drainage list (PDF)||
+Belhar Ext 6|TBH|2024 drainage list (PDF)||
+Belhar Ext 7|TBH|2024 drainage list (PDF)||
+Belhar Ext 8|TBH|2024 drainage list (PDF)||
+Belhar Ext 9|TBH|2024 drainage list (PDF)||
+Bell Glen|HBH|inferred: surrounded by Helderberg suburbs (Macassar Village, Macassar); no touching suburb goes elsewhere||
+Bellair|KBH|2024 drainage list (PDF)||
+Bellville Cbd|KBH|2024 drainage list (PDF)||
+Bellville Landfill|KBH|2024 drainage list (PDF)||
+Bellville South|TBH|2024 drainage list (PDF)||
+Bellville South Industria|TBH|2024 drainage list (PDF)||
+Bellville Teachers College|KBH|2024 drainage list (PDF)||
+Belmont Park|KBH|2024 drainage list (PDF)||
+Belrail|KBH|confirmed by the developer on the map||
+Belthorn Estate|GSH|inferred: surrounded by Groote Schuur suburbs (Pinati, Belgravia, Crawford, Lansdowne); no touching suburb goes elsewhere||
+Belvedere Tygerberg|KBH|inferred: surrounded by Karl Bremer suburbs (De Tijger, Plattekloof 1, Avondale - Parow, Loevenstein); no touching suburb goes elsewhere||
+Bene Township|HBH|inferred: surrounded by Helderberg suburbs (Roundhay, Golden Acre, Somerset West); no touching suburb goes elsewhere||
+Benno Park|KBH|inferred: surrounded by Karl Bremer suburbs (Silveroaks, St Dumas); no touching suburb goes elsewhere||
+Berbago|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Berg Street|VHW|inferred: lies within Vrygrond, which goes to Victoria (Wynberg)|i|
+Bergvliet|VHW|2024 drainage list (PDF)||
+Bethanie|KBH|inferred: surrounded by Karl Bremer suburbs (Chantecler, Eversdal, Amanda Glen); no touching suburb goes elsewhere||
+Better Life - Du Noon|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Bettys Bay|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Beverley Hills|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Bida Crescent|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Big Bay|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Bishop Lavis|TBH|2024 drainage list (PDF)||
+Bishopscourt|VHW|2024 drainage list (PDF)||
+Bizweni|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Blaauwbergstrand|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Blackheath Industria|ERH|2024 drainage list (PDF)||
+Block 8|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Open Space
+Block Macassar|HBH|inferred: lies within Macassar, which goes to Helderberg|i|
+Bloekombos|KBH|inferred: surrounded by Karl Bremer suburbs (Kraaifontein East, Wallacedene); no touching suburb goes elsewhere||
+Bloekombos Somerset West|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Bloemhof|KBH|inferred: surrounded by Karl Bremer suburbs (Ridgeworth, Stellenridge, La Rochelle, Oakdale); no touching suburb goes elsewhere||
+Blommendal|KBH|2024 drainage list (PDF)||
+Blomtuin|KBH|inferred: surrounded by Karl Bremer suburbs (Bellair, Stellenridge, La Rochelle, Bloemhof and 3 more); no touching suburb goes elsewhere||
+Blomvlei|KBH|inferred: surrounded by Karl Bremer suburbs (Welgemoed, Loevenstein); no touching suburb goes elsewhere||
+Blouberg Rise|NSH|2024 drainage list (PDF)||
+Blouberg Sands|NSH|2024 drainage list (PDF)||Happy Valley - Blouberg;Radar Road
+Bloubergrant|NSH|inferred: surrounded by New Somerset suburbs (Blouberg Rise, West Beach, Table View); no touching suburb goes elsewhere||
+Blue Downs Cbd|ERH|2024 drainage list (PDF)||
+BM Section|KDH|confirmed by the developer on the map|i|France - Barnet Molokwana Corner
+Bo Oakdale|KBH|inferred: surrounded by Karl Bremer suburbs (Ridgeworth, Bloemhof, Blomtuin, Oakdale and 2 more); no touching suburb goes elsewhere||
+Bo-Kaap|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Boesak Road|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|
+Bohlo Bohlo|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Boipatong Street|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Bongani|KDH|confirmed by the developer on the map||
+Bongolethu School|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Bongolethu;Marray;Browns Farm 1
+Bongolwethu Street|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Bongweni Lansdowne Road Reserve|KDH|the informal settlements also called this (AT Section, BT Section) go there: estimate, not confirmed|ie|
+Bonnie Brae|KBH|2024 drainage list (PDF)||
+Bonnie Brook|KBH|inferred: surrounded by Karl Bremer suburbs (Bonnie Brae, Pinehurst, Zoo Park, Windsor Park Estate and 1 more); no touching suburb goes elsewhere||
+Bonnievale|WOR|confirmed by the developer on the map||
+Bonny Town Bush|VHW|inferred: lies within Wynberg, which goes to Victoria (Wynberg)|i|
+Bonteheuwel|NSH|2024 drainage list (PDF)||
+Boquinar Industrial Area|ERH|confirmed by the developer on the map||
+Bosasa|KDH|estimate from the map, not confirmed: neighbouring areas (Driftsands) go there|ie|Bosasa Phase 2
+Bosbell|KBH|inferred: surrounded by Karl Bremer suburbs (Oakdale, Bellville Cbd, Boston); no touching suburb goes elsewhere||
+Boskloof|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Bosonia|KBH|2024 drainage list (PDF)||
+Boston|KBH|2024 drainage list (PDF)||
+Bot River|CAL|confirmed by the developer on the map||
+Botfontein Smallholdings|KBH|inferred: surrounded by Karl Bremer suburbs (Protea Village, Normandie Estate, Wallacedene, Scottsdene and 1 more); no touching suburb goes elsewhere||
+Bothasig|KBH|2024 drainage list (PDF)||
+Botrivier|CAL|confirmed by the developer on the map||
+Bottelary Smallholdings 1|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Bottelary Smallholdings 2|KBH|inferred: surrounded by Karl Bremer suburbs (Rouxville, Haasendal, Annandale, Brackenfell South); no touching suburb goes elsewhere||
+Boys Town|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Boys Town Extension|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Bracken Heights|KBH|inferred: surrounded by Karl Bremer suburbs (Springbokpark, Ferndale, Edenpark, Arauna); no touching suburb goes elsewhere||
+Brackenfell Central|KBH|2024 drainage list (PDF)||
+Brackenfell Common|KBH|2024 drainage list (PDF)||
+Brackenfell Industria|KBH|2024 drainage list (PDF)||
+Brackenfell South|KBH|2024 drainage list (PDF)||
+Braeview|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Brandwacht|HBH|estimate from the map, not confirmed: neighbouring areas (Firgrove Rural, Macassar) go there|e|
+Brandwag|KBH|2024 drainage list (PDF)||
+Brantwood|KBH|2024 drainage list (PDF)||
+Bredasdorp|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Brentwood Park - Blue Downs|ERH|estimate from the map, not confirmed: neighbouring areas (Wesbank, Voorbrug, Eindhoven, Rotterdam) go there|e|
+Brentwood Park - Durbanville|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Bridgebank|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Bridgetown|GSH|2024 drainage list (PDF)||
+Bridgewater|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Briza|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Broadlands|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Broadlands Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Broadlands Village|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Brooklyn|NSH|2024 drainage list (PDF)||
+Browns Farm 2|MPH|the informal settlements also called this (Dyushu, Block 8) all go there|i|
+Browns Farm 5|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Browns Farm 6|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Browns Farm Xhwithinja
+Browns Farm Infills|MPH|the informal settlements also called this (Cuba Site, Dimbaza Road, Diya, Gxakagxaka, Ndabakazi Road and 10 more) all go there|i|
+BT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|Bongweni Lansdowne Road Reserve 2
+Buh-Rein Estate|KBH|inferred: surrounded by Karl Bremer suburbs (Viking Village, Joostenbergvlakte Smallholdings, Kraaifontein); no touching suburb goes elsewhere||
+Burgundy|KBH|inferred: surrounded by Karl Bremer suburbs (Sonkring, Kaapsig, Annandale, Protea Heights and 2 more); no touching suburb goes elsewhere||
+Burgundy Estate|KBH|inferred: surrounded by Karl Bremer suburbs (Petrosa Tank Farm, Richwood, De Grendel Farm); no touching suburb goes elsewhere||
+Burundi - Mfuleni|KDH|estimate from the map, not confirmed: neighbouring areas (Mfuleni) go there|ie|
+Butter 50|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Caledon|CAL|confirmed by the developer on the map||
+Calitzdorp|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Camelot|ERH|2024 drainage list (PDF)||
+Camps Bay / Bakoven|NSH|2024 drainage list (PDF)||
+Canal Walk|VHW|inferred: lies within Lotus River, which goes to Victoria (Wynberg)|i|
+Cape Farms - District B|NSH|confirmed by the developer on the map||
+Cape Farms - District C|KBH|confirmed by the developer on the map||
+Cape Farms - District H|VHW|confirmed by the developer on the map||
+Cape Gate|KBH|inferred: surrounded by Karl Bremer suburbs (Scottsville, Okavango Park, Windsor Estate, Langeberg Ridge and 1 more); no touching suburb goes elsewhere||
+Cape Town Airport|ERH|confirmed by the developer on the map||
+Cape Town City Centre|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Carey Park|HBH|inferred: surrounded by Helderberg suburbs (Audas Estate, Somerset West Country Club, Somerset West); no touching suburb goes elsewhere||
+Carwick|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Castle Rock|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area||
+Cata TRA|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|N R Mandela Road 2
+Century City|NSH|2024 drainage list (PDF)||
+Ceres|PAA|confirmed by the developer on the map||
+Chantecler|KBH|inferred: surrounded by Karl Bremer suburbs (Eversdal, Stellenberg, Stellenryk); no touching suburb goes elsewhere||
+Charlesville|TBH|estimate from the map, not confirmed: neighbouring areas (Montana, Valhalla Park) go there|e|
+Chatsworth|PAA|district referral pathways||
+China Town|VHW|inferred: lies within Seawinds, which goes to Victoria (Wynberg)|i|Hillview 1
+Chris Hani|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|Khwezi Park
+Chris Hani Park|HBH|inferred: surrounded by Helderberg suburbs (New Macassar, Macassar); no touching suburb goes elsewhere||
+Chris Nissen Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Chrismar|KBH|2024 drainage list (PDF)||
+Churchill Estate|KBH|2024 drainage list (PDF)||
+Ciko Avenue|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Citabatwe Crescent|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Citrusdal|PAA|confirmed by the developer on the map||
+City Mission - Crossroads|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Clamhall|KBH|confirmed by the developer on the map||
+Clanwilliam|PAA|confirmed by the developer on the map||
+Clara Anna Fontein|KBH|confirmed by the developer on the map||
+Claremont|GSH|2024 drainage list (PDF)||
+Clarkes Estate|TBH|2024 drainage list (PDF)||
+Clifton|NSH|confirmed by the developer on the map||
+Cloetesville|PAA|district referral pathways||
+Clovelly|VHW|2024 drainage list (PDF)||
+Colorado Park|MPH|2024 drainage list (PDF)||
+Congo - Mfuleni|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|Congo
+Connaught|TBH|confirmed by the developer on the map||
+Constantia|VHW|2024 drainage list (PDF)||
+Cput|TBH|confirmed by the developer on the map||
+Cravenby|TBH|2024 drainage list (PDF)||
+Crawford|GSH|2024 drainage list (PDF)||
+Crossroads|MPH|2024 drainage list (PDF)||
+Crossroads 16|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Klipfontein Road Extension
+Crossroads 18/19|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Lansdowne Road 2;Crossroads 18;19
+Crossroads 4|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Vakala Crescent;Stulo Road 3
+Crossroads Infills|MPH|the informal settlements also called this (Crossroads Infills North East, Crossroads 18/19, Crossroads 4, Gwayi Road, Inkululeko Road and 9 more) go there: estimate, not confirmed|ie|
+Crossroads Infills North East|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 13;14;15;Crossroads 14;Crossroads 15
+Croydon|HBH|estimate from the map, not confirmed: neighbouring areas (Croydon Vineyard Estate, Croydon Olive Estate, Kelderhof) go there|e|
+Croydon Olive Estate|HBH|confirmed by the developer on the map||
+Croydon Vineyard Estate|HBH|confirmed by the developer on the map||
+CT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|Taiwan - Mxolisi Phetani;DT Section 1;CCT Section
+CT Section 1|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|
+CT Section 2/3|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|CT Section 2;3;CT Section 3
+Cuba Site|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+D Section|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|D Section 1;D Section 2
+D'Urbanvale|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Dagbreek|MPH|inferred: lies within Westridge - Mitchells Plain, which goes to Mitchells Plain|i|
+Dallas|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|
+Danarand|ERH|2024 drainage list (PDF)||
+Dark City|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Darling|PAA|district referral pathways||
+Dassenberg Drive|WES|estimate from the map, not confirmed: neighbouring areas (Atlantis Industrial) go there|ie|Atlantis Tip
+De Doorns|WOR|confirmed by the developer on the map||
+De Duin|KBH|2024 drainage list (PDF)||
+De Grendel Farm|KBH|confirmed by the developer on the map||
+De Kuilen|KBH|2024 drainage list (PDF)||
+De La Haye|KBH|confirmed by the developer on the map||
+De Oude Spruit|KBH|inferred: surrounded by Karl Bremer suburbs (Sonkring, Kaapsig, Protea Heights, Brackenfell South); no touching suburb goes elsewhere||
+De Rust|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+De Tijger|KBH|2024 drainage list (PDF)||
+De Velde|HBH|confirmed by the developer: map review, the whole Helderberg area||
+De Waal Road|VHW|inferred: lies within Southfield, which goes to Victoria (Wynberg)|i|Prinsesvlei
+De Wijnlanden Estate|ERH|inferred: surrounded by Eerste River suburbs (Eersterivier South, Eersterivier Industria); no touching suburb goes elsewhere||
+Deaconville|HBH|estimate from the map, not confirmed: neighbouring areas (Macassar) go there|e|
+Deepfreeze|HBH|estimate from the map, not confirmed: neighbouring areas (Firgrove Rural, Macassar) go there|e|
+Delft 1 & 2|ERH|2024 drainage list (PDF)||
+Delft 3|ERH|2024 drainage list (PDF)||
+Delft 4|ERH|2024 drainage list (PDF)||
+Delft 5|ERH|2024 drainage list (PDF)||
+Delft 6|ERH|2024 drainage list (PDF)||
+Delft 7|ERH|2024 drainage list (PDF)||
+Delft 8|ERH|2024 drainage list (PDF)||
+Delft 9|ERH|2024 drainage list (PDF)||
+Delft South|ERH|2024 drainage list (PDF)||
+Delft TRA 5|ERH|inferred: lies within Delft South, which goes to Eerste River|i|
+Delro Village|ERH|inferred: surrounded by Eerste River suburbs (Fountain Village, Hindle Park, Silversands, Blue Downs Cbd); no touching suburb goes elsewhere||
+Dennegeur|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Dennemere|ERH|2024 drainage list (PDF)||
+Des Hampden|KBH|2024 drainage list (PDF)||
+Die Wingerd|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Diep River|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Heathfield, Elfindale, Meadowridge, Bergvliet and 3 more); no touching suburb goes elsewhere||
+Diep Street: Open Space|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Dike Square|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Dimbaza Road|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Diya|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Dobson|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Dontsa Square|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Door De Kraal|KBH|2024 drainage list (PDF)||
+Door De Kraal Farm|KBH|2024 drainage list (PDF)||
+Doornbach|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|Site 5
+Dorhill|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Doringbaai|PAA|confirmed by the developer on the map||
+Dreamworld|ERH|inferred: on the Eerste River side of N2; touching suburbs on its side go to Eerste River (Eersterivier South, Driftsands); across the line is Helderberg||
+Driftsands|KDH|confirmed by the developer on the map||
+DT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|DT Section 3;DT Section 2
+Du Noon Business Site|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Du Noon Holding Site 1|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Du Noon Holding Site 2|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Du Noon Holding Site 3|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Du Noon Infills|NSH|the informal settlements also called this (Du Noon Business Site, Dumani Street, Ezulwini, Ithembeni 2, Robben Island and 5 more) all go there|i|
+Du Noon School Site|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|Ithembeni 1
+Du Noon Small Farmers|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Du Noon TRA|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|New Rest - Du Noon TRA;Silvertown TRA
+Duma Nokwe - Phillipi|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Dumani Street|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Dunoon|NSH|2024 drainage list (PDF)||
+Dunrobin|KBH|confirmed by the developer on the map||
+Durbanville|KBH|2024 drainage list (PDF)||
+Durbanville Hills|KBH|2024 drainage list (PDF)||
+Durbanville Meadows|KBH|2024 drainage list (PDF)||
+Durbell|KBH|inferred: surrounded by Karl Bremer suburbs (Everglen, Eversdal, Eversdal Heights); no touching suburb goes elsewhere||
+Durmonte|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Dysselsdorp|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Dyushu|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Edameni
+E Mjobo Street|HEC|inferred: lies within Nyanga, Guguletu, which all go to Heideveld EC|i|
+Eagle Park|VHW|inferred: on the Victoria (Wynberg) side of M7 Jakes Gerwel Drive; touching suburbs on its side go to Victoria (Wynberg) (False Bay Coastal Park, Lotus River); across the line is Mitchells Plain||
+Eastridge|MPH|2024 drainage list (PDF)||
+Ebenhaeser|PAA|confirmed by the developer on the map||
+Edenpark|KBH|2024 drainage list (PDF)||
+Edgemead|KBH|2024 drainage list (PDF)||
+Eensgevonden|KBH|inferred: surrounded by Karl Bremer suburbs (Loucharmante, Jacarandas); no touching suburb goes elsewhere||
+Eersterivier|ERH|inferred: surrounded by Eerste River suburbs (Rosedale - Klein Vlei, Forest Heights, Welmoed Cemetery, Penhill and 1 more); no touching suburb goes elsewhere||
+Eersterivier Industria|ERH|inferred: surrounded by Eerste River suburbs (Eersterivier, Rosedale - Klein Vlei, Welmoed Cemetery, Penhill); no touching suburb goes elsewhere||
+Eersterivier South|ERH|inferred: on the Eerste River side of N2; touching suburbs on its side go to Eerste River (Eersterivier, Electric City, Eersterivier Industria); across the line is Helderberg||
+Egoli - Philippi|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Egoli -Houtbay|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|
+Eikenbosch Kuils River|KBH|inferred: surrounded by Karl Bremer suburbs (Kuils River Sports Grounds, Klein Zevenwacht, Jagtershof, St Dumas); no touching suburb goes elsewhere||
+Eikendal|KBH|inferred: surrounded by Karl Bremer suburbs (Peerless Park East, Peerless Park West, Scottsville, Okavango Park and 3 more); no touching suburb goes elsewhere||
+Eindhoven|ERH|2024 drainage list (PDF)||
+Ekuphumleni - Du Noon|NSH|estimate from the map, not confirmed: neighbouring areas (Dunoon) go there|ie|Ekuphumleni - Du Noon 1;Ekuphumleni - Du Noon 2;Ekuphumleni - Du Noon 3
+Ekuphumleni - Milnerton|NSH|estimate from the map, not confirmed: neighbouring areas (Joe Slovo Park) go there|ie|
+Ekuphumuleni|KDH|inferred: on the Khayelitsha side of M32 Spine Road; touching suburbs on its side go to Khayelitsha (Harare, Graceland, Mandela Park); across the line is Mitchells Plain||
+Elands Bay|NSH|confirmed by the developer on the map||
+Electric City|ERH|2024 drainage list (PDF)||
+Electrical Servitude - Philippi|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Elfindale|VHW|2024 drainage list (PDF)||
+Elgin|CAL|confirmed by the developer on the map||
+Elim|KBH|2024 drainage list (PDF)||
+Elnor|TBH|2024 drainage list (PDF)||
+Elsies River|TBH|2024 drainage list (PDF)||
+Elsies River Industria|TBH|2024 drainage list (PDF)||
+Emseleni|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Endlovini|KDH|confirmed by the developer on the map||
+Engen|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Enkanini|KDH|confirmed by the developer on the map||37B Section;Zweledinga;Lower Chris Hani;Esigingqini;The Ark;Estendini
+Epping Forest|TBH|2024 drainage list (PDF)||
+Epping Industria 1|TBH|2024 drainage list (PDF)||
+Epping Industria 2|TBH|2024 drainage list (PDF)||
+Epping Market|TBH|estimate from the map, not confirmed: neighbouring areas (Epping Industria 1) go there|ie|
+Erinvale Estate|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Esantini|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|Santi Camp;M Ceshemba Street
+Eureka Estate|TBH|2024 drainage list (PDF)||
+Everglen|KBH|inferred: surrounded by Karl Bremer suburbs (Eversdal, Eversdal Heights); no touching suburb goes elsewhere||
+Everite Industria|KBH|inferred: surrounded by Karl Bremer suburbs (Morgenster, Brackenfell Central, Protea Village, Brackenfell Industria and 4 more); no touching suburb goes elsewhere||
+Eversdal|KBH|2024 drainage list (PDF)||
+Eversdal Heights|KBH|2024 drainage list (PDF)||
+Eyethu|KDH|confirmed by the developer on the map||
+Ezhingwini|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Ezihagwini
+Ezulwini|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Fairdale|ERH|2024 drainage list (PDF)||
+Fairfield Estate|KBH|2024 drainage list (PDF)||
+Fairview Golf Estate|HBH|confirmed by the developer: map review, the whole Helderberg area||
+False Bay Coastal Park|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Lavender Hill, Strandfontein, Seawinds, Zeekoeivlei and 4 more); no touching suburb goes elsewhere||
+Faure|ERH|inferred: surrounded by Eerste River suburbs (Eersterivier South, Dreamworld, Driftsands, Electric City); no touching suburb goes elsewhere||
+Faure Camp|ERH|estimate from the map, not confirmed: neighbouring areas (Forest Village) go there|ie|
+Faure Smallfarmers|ERH|inferred: lies within Faure, which goes to Eerste River|i|Ithemba
+Febhana|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Ferndale|KBH|2024 drainage list (PDF)||
+Fernwood|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Firgrove|HBH|confirmed by the developer on the map||
+Firgrove Rural|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Firlands|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Fisantekraal|KBH|2024 drainage list (PDF)||
+Fisantekraal Industrial|KBH|2024 drainage list (PDF)||
+Fish Hoek|FBH|2024 drainage list (PDF)||
+Flamingo Crescent|GSH|inferred: lies within Lansdowne, which goes to Groote Schuur|i|Flemingo Crescent
+Flamingo Vlei|NSH|inferred: surrounded by New Somerset suburbs (Table View, Milnerton); no touching suburb goes elsewhere||
+Flora Road - Retreat|VHW|inferred: lies within Steenberg, which goes to Victoria (Wynberg)|i|Kavalla Dorp;Nooitgedag
+Florida|TBH|confirmed by the developer on the map||
+Foreshore|NSH|confirmed by the developer on the map||
+Forest Heights|ERH|2024 drainage list (PDF)||
+Forest Village|ERH|confirmed by the developer on the map||
+Fountain Village|ERH|2024 drainage list (PDF)||
+Fraaigelegen|HBH|confirmed by the developer: map review, the whole Helderberg area||
+France - Lwandle|HBH|confirmed by the developer: map review, the whole Helderberg area|i|France - Helderberg;France - Lwandle 1;France - Lwandle 2
+Franschhoek|PAA|district referral pathways||
+Freedom Park - Airport|ERH|estimate from the map, not confirmed: neighbouring areas (Cape Town Airport) go there|ie|
+Freedom Park - Ottery|VHW|inferred: lies within Ottery, which goes to Victoria (Wynberg)|i|
+Fresnaye|NSH|confirmed by the developer on the map||
+Galaweni Road|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Gamka Street|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|Balelibomvu
+Gansbaai|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Gants Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Garden Cities - Mfuleni|KDH|estimate from the map, not confirmed: neighbouring areas (Mfuleni) go there|ie|
+Garden Village|HBH|inferred: surrounded by Helderberg suburbs (Carey Park, Somerset West Country Club, Somerset West); no touching suburb goes elsewhere||
+Gardens|NSH|2024 drainage list (PDF)||
+Gatesville|GSH|2024 drainage list (PDF)||
+Gaylee|ERH|2024 drainage list (PDF)||
+Gaza|TBH|inferred: lies within Leonsdale, which goes to Tygerberg|i|
+Genadendal|CAL|confirmed by the developer on the map||
+George|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+George Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Gersham|KBH|2024 drainage list (PDF)||
+Glencairn|VHW|confirmed by the developer on the map||
+Glenhaven|TBH|2024 drainage list (PDF)||
+Glenlily|KBH|2024 drainage list (PDF)||
+Glenwood|KBH|inferred: on the Karl Bremer side of M7 Jakes Gerwel Drive; touching suburbs on its side go to Karl Bremer (Tygerdal, Townsend Estate); across the line is New Somerset||
+Goede Hoop|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Goedemoed|KBH|2024 drainage list (PDF)||
+Golden Acre|HBH|inferred: surrounded by Helderberg suburbs (Roundhay, Land En Zeezicht, Martinville, Somerset West Nature Reserve and 1 more); no touching suburb goes elsewhere||
+Golden Hill Ext 1|HBH|inferred: surrounded by Helderberg suburbs (Land En Zeezicht, Golden Acre, Somerset West Nature Reserve); no touching suburb goes elsewhere||
+Goliath|KBH|inferred: lies within Goliath Estate, which goes to Karl Bremer|i|
+Goliath Estate|KBH|inferred: surrounded by Karl Bremer suburbs (Bonnie Brae, Windsor Park Estate, Kraaifontein); no touching suburb goes elsewhere||
+Good Hope|KDH|confirmed by the developer on the map||
+Goodrail|TBH|confirmed by the developer on the map||
+Goodwood Ext 1|KBH|2024 drainage list (PDF)||
+Goodwood Estate|KBH|2024 drainage list (PDF)||
+Gordon Heights|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Gordons Bay|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Gordons Bay Ext 12|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Gordons Bay Village|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Gordons Strand Estate|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Gouda|PAA|district referral pathways||
+Gqobasi|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Graafwater|NSH|confirmed by the developer on the map||
+Graanendal|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Grabouw|CAL|confirmed by the developer: Grabouw goes to Caledon, then Worcester, then Tygerberg||
+Graceland|KDH|2024 drainage list (PDF)||
+Grassy Park|VHW|2024 drainage list (PDF)||
+Graveyard - Philippi|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Graveyard Pond|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Great Brak River|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Great Dutch Street|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|Great Dutch Street 1;Great Dutch Street 2;Great Dutch Street 3
+Green Park - Mfuleni|KDH|estimate from the map, not confirmed: neighbouring areas (Driftsands) go there|ie|
+Green Point (informal settlement, Sabata Dalindyebo Square)|KDH|2024 drainage list (PDF)|i|Sebata Dalindyebo Square;Green Point 2
+Green Point (Western sub-district)|NSH|2024 drainage list (PDF)||
+Greenfields (Eastern sub-district)|ERH|inferred: surrounded by Eerste River suburbs (Tuscany Glen, The Conifers, Gaylee, Austinville and 2 more); no touching suburb goes elsewhere||
+Greenfields (informal settlement, Lwandle)|HBH|confirmed by the developer: map review, the whole Helderberg area|i|Enkanini - Lwandle
+Greenlands|TBH|confirmed by the developer on the map||
+Greenville Garden City|KBH|confirmed by the developer on the map||
+Greenways|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Greyton|CAL|confirmed by the developer on the map||
+Groenvallei|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Gugulethu Infills|HEC|the informal settlements also called this (Mashlungi, Sikonanathi, Sakhile) all go there|i|
+Guguletu|HEC|2024 drainage list (PDF)||
+Gwayi Road|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 10;Gwayi Road 1;Gwayi Road 2;Gwayi Road 3
+Gxagxa|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+Gxakagxaka|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Haarlem|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Haasendal|KBH|2024 drainage list (PDF)||
+Hadjie Ebrahim Cresent|GSH|inferred: lies within Belgravia, which goes to Groote Schuur|i|
+Hagley|ERH|2024 drainage list (PDF)||
+Hangberg|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|Hida
+Hangberg Sloot|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|
+Hanover Park|GSH|2024 drainage list (PDF)||
+Happy Valley|ERH|inferred: surrounded by Eerste River suburbs (Wimbledon Estate, Silversands, Blackheath Industria, Blue Downs Cbd); no touching suburb goes elsewhere||Happy Valley 1;Happy Valley 2;Happy Valley 3;Sofia
+Harare|KDH|2024 drainage list (PDF)||
+Harare Infills|KDH|inferred: lies within Harare, which goes to Khayelitsha|i|Section 37;Section 35
+Harbour Island|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Hardekraaltjie|TBH|confirmed by the developer on the map||
+Harmony Village|MPH|2024 drainage list (PDF)||
+Harry Gwala|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Block 6;Landsdowne Road
+Hartenbos|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Hatton|GSH|confirmed by the developer on the map||
+Hawston|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Hazendal|GSH|2024 drainage list (PDF)||
+Heartland Beach Road Precinct|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Heartland Historic Precinct|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Heathfield|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Elfindale, Retreat, Bergvliet); no touching suburb goes elsewhere||
+Heemstede|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Heidelberg|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Heideveld|HEC|2024 drainage list (PDF)||
+Heinz Park 2|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Heinz Park 3|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Heinz Park 4|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Heinz Park 5|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Heinz Park 1
+Heinz Park Infills|MPH|the informal settlements also called this (Heinz Park 5, Heinz Park 2, Heinz Park 3, Heinz Park 4) all go there|i|
+Helderberg Estate|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Helderberg Industrial Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Helderberg Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Helderberg Rural|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Helderberg Village|KBH|estimate from the map, not confirmed: neighbouring areas (Vredenberg - Somerset West) go there|e|
+Helderrant|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Heldervue|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Helderzicht|HBH|inferred: surrounded by Helderberg suburbs (Silvertas, Somerset West); no touching suburb goes elsewhere||
+Helena Heights|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Heritage Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Hermanus|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+High Riding|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Highbury|KBH|2024 drainage list (PDF)||
+Highbury Park|KBH|2024 drainage list (PDF)||
+Highgate|ERH|2024 drainage list (PDF)||
+Highlands Village|MPH|inferred: surrounded by Mitchells Plain suburbs (Colorado Park, Woodlands, Harmony Village); no touching suburb goes elsewhere||
+Highveld|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Hillcrest Heights|ERH|confirmed by the developer on the map||
+Hindle Park|ERH|2024 drainage list (PDF)||
+Hlazo|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Hoheizen|KBH|2024 drainage list (PDF)||
+Hood Road|GSH|inferred: lies within Belgravia, which goes to Groote Schuur|i|
+Hoogstede|KBH|inferred: surrounded by Karl Bremer suburbs (Ferndale, Edenpark, Bracken Heights, Vredenberg - Bellville and 2 more); no touching suburb goes elsewhere||
+Hopefield|NSH|confirmed by the developer on the map||
+Hout Bay|VHW|2024 drainage list (PDF)||
+Humanshof|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Hunters Creek|KBH|inferred: surrounded by Karl Bremer suburbs (Kuils River Sports Grounds, Vredelust Kuils River, Jagtershof); no touching suburb goes elsewhere||
+Hyde Park|MPH|inferred: surrounded by Mitchells Plain suburbs (Highlands Village, Rondevlei Park, Colorado Park, Weltevreden Valley); no touching suburb goes elsewhere||
+Idas Valley|PAA|district referral pathways||
+Ikwezi Park|KDH|2024 drainage list (PDF)||
+Iligwa Street|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Ilitha Park|KDH|inferred: on the Khayelitsha side of M32 Spine Road; touching suburbs on its side go to Khayelitsha (Harare, Ekuphumuleni, Mandela Park); across the line is Mitchells Plain||
+Illaire|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Imizamo Yethu|VHW|the informal settlements also called this (Imizamo Yethu West, Imizamo Yethu East) all go there|i|
+Imizamo Yethu East|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|Hugendon;Graveyard - Hout Bay;YMCA 1;Imizamo Yethu1
+Imizamo Yethu West|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|Imizamo Yethu 2;YMCA 2
+Ingulube|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Sheffield Ingulube
+Inkululeko Road|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Intersite TRA|NSH|inferred: lies within Langa, which goes to New Somerset|i|Langa Intersite
+Iraq - Philippi|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Isibaneni - Mfuleni|KDH|estimate from the map, not confirmed: neighbouring areas (Mfuleni) go there|ie|Phola Park: Phase 1
+Island - Bongani|KDH|estimate from the map, not confirmed: neighbouring areas (Bongani) go there|ie|CL Section;Bongweni Lansdowne Road Reserve 3
+Ithembeni 2|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Itsitsa Street|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Jabula|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Jacarandas|KBH|inferred: surrounded by Karl Bremer suburbs (Loucharmante, Eikenbosch Kuils River, Amandelsig, Haasendal and 1 more); no touching suburb goes elsewhere||
+Jacobsdal Smallholdings|ERH|inferred: surrounded by Eerste River suburbs (Gaylee, Blackheath Industria, Dennemere, Kleinvlei Town); no touching suburb goes elsewhere||
+Jacques Hill|HBH|inferred: surrounded by Helderberg suburbs (Bene Township, Roundhay, Golden Acre); no touching suburb goes elsewhere||
+Jagtershof|KBH|2024 drainage list (PDF)||
+Jameson Mngomezulu Road|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Jan Kriel|KBH|inferred: surrounded by Karl Bremer suburbs (Elim, Amandelrug, Brandwag, Soneike I); no touching suburb goes elsewhere||
+Jim Se Bos|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Joe Slovo|NSH|inferred: lies within Langa, which goes to New Somerset|i|
+Joe Slovo North|NSH|inferred: lies within Langa, which goes to New Somerset|i|Little Kosovo
+Joe Slovo Park|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Jonkers Hoogte|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Joostenbergvlakte Smallholdings|KBH|inferred: surrounded by Karl Bremer suburbs (Viking Village, Peerless Park North, Kraaifontein Industria, Kraaifontein); no touching suburb goes elsewhere||
+Joubertpark|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Jub Jub|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+K2 Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|
+Kaapsig|KBH|2024 drainage list (PDF)||
+Kaapzicht|KBH|confirmed by the developer on the map||
+Kalamunda|HBH|inferred: surrounded by Helderberg suburbs (Martinville, Somerset West); no touching suburb goes elsewhere||
+Kalbaskraal|PAA|district referral pathways||
+Kalk Bay|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area||
+Kalkfontein|KBH|2024 drainage list (PDF)||Kirbys Farm
+Kalksteenfontein|TBH|estimate from the map, not confirmed: neighbouring areas (Montana, Valhalla Park, Matroosfontein, Bishop Lavis) go there|e|
+Kampies|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Kanana|HEC|2024 drainage list (PDF)|i|
+Kanonberg|KBH|inferred: surrounded by Karl Bremer suburbs (Nieuw Maastrecht-1, Oude Westhof, Welgedacht, Baronetcy Estate and 1 more); no touching suburb goes elsewhere||
+Kansite|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Kan-Site Philippi
+Kapteinsklip|MPH|inferred: lies within Rocklands, which goes to Mitchells Plain|i|
+Kat Se Kamp|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Kayamandi|PAA|district referral pathways||
+Kelderhof|HBH|confirmed by the developer on the map||
+Kempenville|KBH|inferred: surrounded by Karl Bremer suburbs (Chrismar, Oakdale, Kingston, Bellville Cbd); no touching suburb goes elsewhere||
+Kenilworth|VHW|2024 drainage list (PDF)||
+Kenridge|KBH|inferred: surrounded by Karl Bremer suburbs (Everglen, Door De Kraal, O'Kennedyville, Waterkloof, De Bron Ext 44 and 7 more); no touching suburb goes elsewhere||
+Kensington|NSH|2024 drainage list (PDF)||
+Kewtown|GSH|2024 drainage list (PDF)||
+Khaya|KDH|confirmed by the developer on the map||
+Khayelitsha|KDH|2024 drainage list (PDF)||
+Khuyasa|NSH|confirmed by the developer: map review, the whole New Somerset area|i|
+Khwababa Street|KBH|inferred: lies within Bloekombos, which goes to Karl Bremer|i|
+Killarney Gardens|NSH|inferred: on the New Somerset side of N7; touching suburbs on its side go to New Somerset (Dunoon, Milnerton); across the line is Karl Bremer||
+King David Country Club|ERH|confirmed by the developer on the map||
+Kingston|KBH|inferred: surrounded by Karl Bremer suburbs (Oakdale, Bellville Cbd); no touching suburb goes elsewhere||
+Kirstenhof|VHW|2024 drainage list (PDF)||
+Klapmuts|PAA|district referral pathways||
+Klawer|PAA|confirmed by the developer on the map||
+Klein Zevenwacht|KBH|inferred: surrounded by Karl Bremer suburbs (Zevenwacht Retirement Village, Zevenwacht Farm Village, Zevendal); no touching suburb goes elsewhere||
+Klein Zoute Rivier|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|
+Kleinbegin|KBH|inferred: surrounded by Karl Bremer suburbs (Wallacedene, Belmont Park); no touching suburb goes elsewhere||
+Kleinbosch|KBH|2024 drainage list (PDF)||
+Kleinbron|KBH|inferred: surrounded by Karl Bremer suburbs (Vredekloof East, Langeberg Ridge, Cape Gate, Sonstraal Heights); no touching suburb goes elsewhere||
+Kleinmond|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Kleinvlei Town|ERH|2024 drainage list (PDF)||
+Klipdam|KBH|2024 drainage list (PDF)||
+Klipfontein Glebe|MPH|estimate from the map, not confirmed: neighbouring areas (Philippi) go there|ie|
+Klipheuwel|KBH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District C) go there|ie|
+Klipheuwel Housing Scheme|KBH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District C) go there|e|
+Klipkop|TBH|2024 drainage list (PDF)||
+Kloofzicht|KBH|inferred: surrounded by Karl Bremer suburbs (Kuils River Sports Grounds, St Dumas); no touching suburb goes elsewhere||
+Knole Park|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Knole;Williston
+Knysna|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Koekoe Town|NSH|inferred: lies within Kensington, which goes to New Somerset|i|13th Street - Kensington;Waltemade Station
+Kolobe Road|VHW|inferred: lies within Sunnydale, which goes to Victoria (Wynberg)|i|
+Kommetjie|VHW|2024 drainage list (PDF)||
+Koringberg|PAA|district referral pathways||
+Kosovo|MPH|2024 drainage list (PDF)|i|
+Kraaifontein|KBH|2024 drainage list (PDF)||
+Kraaifontein East|KBH|2024 drainage list (PDF)||
+Kraaifontein Industria|KBH|2024 drainage list (PDF)||
+Kraaifontein Infills|KBH|the informal settlements also called this (Ntlotshane Street, Khwababa Street, Sam Nnjokozela Avenue, Simanga Street) all go there|i|
+Kranshoek|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Kroonendal - Houtbay|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|
+KTC|HEC|inferred: lies within Nyanga, Guguletu, which all go to Heideveld EC|i|
+KTC Infills|HEC|the informal settlements also called this (Hlazo, KTC Training Camp, Nyanga 13563, B Longo Road, Great Dutch Street and 7 more) all go there|i|
+KTC Training Camp|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|KTC Training Camp 1;KTC Training Camp 2
+Kuils River Common|KBH|2024 drainage list (PDF)||
+Kuils River Sports Grounds|KBH|2024 drainage list (PDF)||
+Kuilsrivier Golf Course|KBH|inferred: surrounded by Karl Bremer suburbs (Bottelary Smallholdings 2, Brackenfell South); no touching suburb goes elsewhere||
+Kuilsrivier Industria|KBH|confirmed by the developer on the map||
+Kuilsrivier South Smallholdings|KBH|confirmed by the developer on the map||
+Kuyasa|KDH|2024 drainage list (PDF)||
+Kwanokuthula|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Kwaplayithi|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+L Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|LT Section;LB Section;LR Section
+La Concorde|HBH|confirmed by the developer: map review, the whole Helderberg area||
+La Montagne|KBH|estimate from the map, not confirmed: neighbouring areas (Vredenberg - Somerset West) go there|e|
+La Rochelle|KBH|inferred: surrounded by Karl Bremer suburbs (Bellair, Stellenridge, Vredenberg - Bellville, Stellenberg); no touching suburb goes elsewhere||
+La Sandra|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Labiance|TBH|confirmed by the developer on the map||
+Ladismith|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Lagoon Beach|NSH|inferred: surrounded by New Somerset suburbs (Rugby, Milnerton); no touching suburb goes elsewhere||
+Laingsburg|WOR|confirmed by the developer on the map||
+Lake Road - Grassy Park|VHW|inferred: lies within Lotus River, which goes to Victoria (Wynberg)|i|Civic Road
+Lakeside|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Westlake, Steenberg, Kirstenhof, Muizenberg); no touching suburb goes elsewhere||
+Lamberts Bay|NSH|confirmed by the developer on the map||
+Land En Zeezicht|HBH|inferred: surrounded by Helderberg suburbs (Somerset West Nature Reserve, Somerset West); no touching suburb goes elsewhere||
+Langa|NSH|2024 drainage list (PDF)||
+Langa Infills|NSH|the informal settlements also called this (Thabo Mbeki - Langa, Langa Sportsfield, Siyahlala - Langa) all go there|i|
+Langa Sportsfield|NSH|inferred: lies within Langa, which goes to New Somerset|i|
+Langebaan|NSH|confirmed by the developer on the map; staff in the app said correct 1 time, flagged it wrong 0 times||
+Langeberg Hoogte|KBH|inferred: surrounded by Karl Bremer suburbs (Bonnie Brae, Pinehurst, Bonnie Brook, Zoo Park and 2 more); no touching suburb goes elsewhere||
+Langeberg Ridge|KBH|2024 drainage list (PDF)||
+Langeberg Village|KBH|inferred: surrounded by Karl Bremer suburbs (Sonstraal Heights, Durbanville); no touching suburb goes elsewhere||
+Lansdowne|GSH|2024 drainage list (PDF)||
+Lavender Hill|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Steenberg, Retreat, Grassy Park); no touching suburb goes elsewhere||
+Leeu Gamka|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Leiden|ERH|inferred: surrounded by Eerste River suburbs (Delft 4, Delft 5, The Hague, Delft 6 and 6 more); no touching suburb goes elsewhere||
+Lentegeur|MPH|2024 drainage list (PDF)||
+Leonsdale|TBH|confirmed by the developer on the map||
+Letru|KBH|inferred: surrounded by Karl Bremer suburbs (Mabille Park, Brantwood); no touching suburb goes elsewhere||
+Letsatsi Mosala Street|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Lillian Ngoyi Drive|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Lillydale|KBH|inferred: surrounded by Karl Bremer suburbs (Turtle Creek, Hunters Creek); no touching suburb goes elsewhere||
+Lindelani Park|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|Engweveni
+Link Road School Site|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Llandudno|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area||
+Loevenstein|KBH|2024 drainage list (PDF)||
+Longdown Estate|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Los Angeles|KDH|estimate from the map, not confirmed: neighbouring areas (Driftsands) go there|ie|
+Lotus Park|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+Lotus River|VHW|2024 drainage list (PDF)||
+Loucharmante|KBH|inferred: surrounded by Karl Bremer suburbs (Mikro Park, Amandelsig, St Dumas); no touching suburb goes elsewhere||
+Loumar|KBH|confirmed by the developer on the map||
+Lourensia Park|HBH|inferred: surrounded by Helderberg suburbs (Paarde Vlei, Victoria Park); no touching suburb goes elsewhere||
+Lusaka|HEC|2024 drainage list (PDF)|i|
+Lusaka Infills|MPH|the informal settlements also called this (Miller Street, Jub Jub, Ntlangano Crescent (informal settlement, Crossroads), Lusaka Infils 1, Siphika Street and 1 more) go there: estimate, not confirmed|ie|
+Lusaka Infils 1|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Lusaka Infils 3|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Lutzville|PAA|confirmed by the developer on the map||
+Lwandle|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Lynn's View|HBH|estimate from the map, not confirmed: neighbouring areas (Helderberg Estate, Braeview, Jonkers Hoogte, Bel'Aire) go there|e|
+M Baba Street|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+M Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|MC Section;MM Section 1;MM Section 2
+Mabille Park|KBH|2024 drainage list (PDF)||
+Macassar|HBH|2024 drainage list (PDF)||
+Macassar Beach|HBH|2024 drainage list (PDF)||
+Macassar Sites|HBH|the informal settlements also called this (Chris Hani Park, Block Macassar) all go there|i|
+Macassar Village|HBH|2024 drainage list (PDF)||
+Madiba Lane TRA|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|N R Mandela Road 1
+Mahobe Circle: Open Space|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Maitland|NSH|2024 drainage list (PDF)||
+Maitland Cemetery|NSH|inferred: lies within Maitland, which goes to New Somerset|i|Maitland Cemetery Gate 1
+Maitland Garden Village|NSH|2024 drainage list (PDF)||
+Makhaza Road Reserve|KDH|estimate from the map, not confirmed: neighbouring areas (Umrhabulo Triangle) go there|ie|Lansdown Road Reserve
+Malawi|TBH|inferred: lies within Modderdam, which goes to Tygerberg|i|
+Malibu Village|ERH|2024 drainage list (PDF)||
+Mall Interchange|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Mall Motor City|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Mall Triangle|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Malmesbury|PAA|district referral pathways||
+Malmesbury Farms|WES|confirmed by the developer on the map||
+Mampinga Square|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Mamre|WES|confirmed by the developer on the map||
+Mandela Park|KDH|2024 drainage list (PDF)||
+Manenberg|HEC|2024 drainage list (PDF)||
+Mansfield Industria|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Maphongwana Avenue|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|
+Marconi Beam|NSH|2024 drainage list (PDF)||
+Marcus Garvey|MPH|2024 drainage list (PDF)|i|
+Marinda Park|KBH|confirmed by the developer on the map||
+Martinville|HBH|inferred: surrounded by Helderberg suburbs (Land En Zeezicht, Somerset West); no touching suburb goes elsewhere||
+Marvinpark|HBH|inferred: surrounded by Helderberg suburbs (New Scheme, Macassar); no touching suburb goes elsewhere||
+Masebulele Road|VHW|inferred: lies within Sunnydale, which goes to Victoria (Wynberg)|i|
+Mashlungi|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+Masikhule|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|R Section
+Masiphumelele Infills|VHW|the informal settlements also called this (Kolobe Road, Masebulele Road, Ntantala Road, Masonwabe Road 1) all go there|i|
+Masiphumelele School Site|VHW|inferred: lies within Sunnydale, which goes to Victoria (Wynberg)|i|Amakhaya Ngoko
+Masiphumelele TRA|VHW|inferred: lies within Sunnydale, which goes to Victoria (Wynberg)|i|Site 5 TRA
+Masiphumelele Wetlands|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area|i|Masiphumelele Vlei
+Masonwabe Road 1|VHW|inferred: lies within Sunnydale, which goes to Victoria (Wynberg)|i|Masonwabe Road 2
+Matjiesfontein|WOR|confirmed by the developer on the map||
+Matroosfontein|TBH|2024 drainage list (PDF)||
+Mbambo Street|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|Mbambo Street 1;Mbambo Street 2
+Mbekweni|PAA|district referral pathways||
+McGregor|WOR|confirmed by the developer on the map||
+Mchiniwham|NSH|estimate from the map, not confirmed: neighbouring areas (Joe Slovo Park) go there|ie|
+Meadowridge|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Bergvliet, Constantia); no touching suburb goes elsewhere||
+Meadowvale Farm|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|
+Melkbosch Strand|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Merweville|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Metro|NSH|inferred: surrounded by New Somerset suburbs (Lagoon Beach, Rugby, Brooklyn, Milnerton); no touching suburb goes elsewhere||
+Meyerhof|KBH|confirmed by the developer on the map||
+Mfuleni|KDH|2024 drainage list (PDF)||
+Mfuleni Infills|KDH|the informal settlements also called this (Emseleni, Esantini, Gamka Street, Iligwa Street, Itsitsa Street and 10 more) go there: estimate, not confirmed|ie|
+Mgqwashu Square|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Mikpunt|KBH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District C) go there|e|
+Mikro Park|KBH|inferred: surrounded by Karl Bremer suburbs (Silveroaks, Klipdam, Elim, Amandelsig and 1 more); no touching suburb goes elsewhere||
+Miles Street|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|
+Military Heights|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area|i|Vrygrond Military Road
+Miller Street|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Millers Camp|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|KTC 5
+Milnerton|NSH|2024 drainage list (PDF)||
+Milnerton Infills|NSH|the informal settlements also called this (Bekela, Mkanini, Ekuphumleni - Milnerton, Khuyasa, Mchiniwham and 1 more) go there: estimate, not confirmed|ie|
+Milnerton Ridge|NSH|2024 drainage list (PDF)||
+Mission Grounds|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Misty Cliffs|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area||
+Mitchells Plain Cbd|MPH|2024 drainage list (PDF)||
+Mkanini|NSH|confirmed by the developer: map review, the whole New Somerset area|i|
+Mkonto Square|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Mlambo Street|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|Peter Tosh;BBT
+Mocke Road|VHW|inferred: lies within Elfindale, Diep River, which all go to Victoria (Wynberg)|i|Hadjie
+Modderdam|TBH|2024 drainage list (PDF)||
+Montagu|WOR|confirmed by the developer on the map||
+Montague|KBH|confirmed by the developer on the map||
+Montague Gardens|NSH|2024 drainage list (PDF)||
+Montana|TBH|2024 drainage list (PDF)||
+Montana Extension|TBH|2024 drainage list (PDF)||
+Montchere|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Monte Sereno|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Monte Vista|KBH|2024 drainage list (PDF)||
+Montevideo|ERH|confirmed by the developer on the map||
+Monwabisi|HBH+KDH|border area marked by the developer on the map|b|
+Monwabisi Park|KDH|estimate from the map, not confirmed: neighbouring areas (Endlovini) go there|ie|Monwabisi Park B;Monwabisi Park C;Monwabisi Park A;Monwabisi Park M;Cemetary Site
+Monwood|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Monwood Council;Monwood South
+Moorreesburg|PAA|district referral pathways||
+Morgan Industria|KBH|inferred: surrounded by Karl Bremer suburbs (Brackenfell Common, Brackenfell Central, Soneike Ii, Annandale and 2 more); no touching suburb goes elsewhere||
+Morgans Village|MPH|inferred: surrounded by Mitchells Plain suburbs (Westgate, Westridge - Mitchells Plain, Rondevlei Park, Woodlands and 1 more); no touching suburb goes elsewhere||
+Morgenster|KBH|2024 drainage list (PDF)||
+Morgenster Heights|KBH|2024 drainage list (PDF)||
+Morkels Cottages|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Morningside|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Morningstar|KBH|2024 drainage list (PDF)||
+Mosanwabe|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+Mossel Bay|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Mouille Point|NSH|inferred: surrounded by New Somerset suburbs (Green Point, Three Anchor Bay); no touching suburb goes elsewhere||
+Mountainside|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Mountainside Estate|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Mountainside Ext 2|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Mountainview|VHW|inferred: lies within Ocean View, which goes to Victoria (Wynberg)|i|
+Mountview|GSH|2024 drainage list (PDF)||
+Mowbray|GSH|2024 drainage list (PDF)||
+Mpangele Street|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Mpetha Square|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Msindweni Makhaza|KDH|estimate from the map, not confirmed: neighbouring areas (Driftsands) go there|ie|Powerlines
+Muizenberg|VHW|2024 drainage list (PDF)||
+Murraysburg|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Mxolisi Phetani|KDH|confirmed by the developer on the map||
+N1-Stad|KBH|confirmed by the developer on the map||
+Napier|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Nature's Valley (Eastern sub-district)|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Natures Valley (Northern sub-district)|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Ndabakazi Road|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Nduli|PAA|confirmed by the developer on the map||
+Nelspoort|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Nerina|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+New Look - Philippi|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Iraq
+New Macassar|HBH|inferred: surrounded by Helderberg suburbs (Macassar Village, Bell Glen, Macassar); no touching suburb goes elsewhere||
+New Rest Remainder|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|New Rest 2
+New Scheme|HBH|inferred: surrounded by Helderberg suburbs (Riverside, Macassar); no touching suburb goes elsewhere||
+New Woodlands|MPH|inferred: surrounded by Mitchells Plain suburbs (Colorado Park, Woodlands, Lentegeur, Philippi); no touching suburb goes elsewhere||
+Newfields|GSH|2024 drainage list (PDF)||
+Newlands|GSH|2024 drainage list (PDF)||
+Ngesi Crescent|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 12;Ngesi Crescent 1;Ngesi Crescent 2
+Ngulube|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Nieuw Maastrecht-1|KBH|inferred: surrounded by Karl Bremer suburbs (De Grendel Farm, Oude Westhof); no touching suburb goes elsewhere||
+Nieuw Maastrecht-2|KBH|inferred: surrounded by Karl Bremer suburbs (Van Riebeeckshof, Nieuw Maastrecht-1, Oude Westhof); no touching suburb goes elsewhere||
+Nobanda|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Browns Farm 3
+Nomzamo|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Nongawe|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Nonqubela|KDH|confirmed by the developer on the map||
+Nonqubela Infills|KDH|the informal settlements also called this (L Section, Q Section, SB Section, M Section, Masikhule and 1 more) go there: estimate, not confirmed|ie|
+Nonzamo|HBH|confirmed by the developer: map review, the whole Helderberg area|i|Masakhane
+Nooitgedacht|TBH|confirmed by the developer on the map||
+Noordhoek|VHW|2024 drainage list (PDF)||
+Normandie Estate|KBH|inferred: surrounded by Karl Bremer suburbs (Protea Village, Brackenfell South); no touching suburb goes elsewhere||
+Northgate|KBH|confirmed by the developer on the map||
+Northpine|KBH|2024 drainage list (PDF)||
+NT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|
+Ntantala Road|VHW|inferred: lies within Sunnydale, which goes to Victoria (Wynberg)|i|
+Ntlangano Crescent (informal settlement, Crossroads)|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Ntlangano Crescent: Open Space;Lusaka Infils 2
+Ntlangano Crescent (informal settlement, Nyanga)|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Ntlotshane Street|KBH|inferred: lies within Bloekombos, which goes to Karl Bremer|i|
+Nutwood|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Nuwe Mosienes|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Nyakatisha|KDH|estimate from the map, not confirmed: neighbouring areas (Mfuleni) go there|ie|
+Nyanga|HEC|2024 drainage list (PDF)||
+Nyanga 13563|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|Lee Bozalek Road
+Nyanga Infills|HEC|the informal settlements also called this (Dike Square, Febhana, Mgqwashu Square, Nongawe, Mahobe Circle: Open Space and 3 more) all go there|i|
+Nyebelele|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|Nyebelele 1;Nyebelele 2
+O Nqubelani Street|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+O'Kennedyville|KBH|inferred: surrounded by Karl Bremer suburbs (Rosendal, Ridgeworth, Bo Oakdale); no touching suburb goes elsewhere||
+Oakdale|KBH|2024 drainage list (PDF)||
+Oakdene|KBH|2024 drainage list (PDF)||
+Oakglen|KBH|inferred: surrounded by Karl Bremer suburbs (Ferndale, Bellair, Brackenfell Central, Hoogstede and 3 more); no touching suburb goes elsewhere||
+Observatory|GSH|2024 drainage list (PDF)||
+Ocean View|VHW|2024 drainage list (PDF)||
+Okavango Park|KBH|2024 drainage list (PDF)||
+Olieboom|MPH|the informal settlements also called this (Jim Se Bos, Engen) all go there|i|
+Olive Grove|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Oliver Tambo Avenue|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Unknown 20
+Onrus|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Onverwacht - Gordon's Bay|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Onverwacht - The Strand|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Onverwacht Village|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Oosterzee-Bellville|KBH|confirmed by the developer on the map||
+Op die Berg|CWD|district referral pathways (route not set yet)||
+OR Tambo TRA|KDH|estimate from the map, not confirmed: neighbouring areas (Driftsands) go there|ie|BM Section Fire Emergency
+Oranjezicht|NSH|2024 drainage list (PDF)||
+Ottery|VHW|2024 drainage list (PDF)||
+Oude Westhof|KBH|inferred: surrounded by Karl Bremer suburbs (Van Riebeeckshof, Welgedacht); no touching suburb goes elsewhere||
+Oudekraal|NSH|confirmed by the developer on the map||
+Oudtshoorn|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Overcome Heights|VHW|inferred: lies within Seawinds, False Bay Coastal Park, Muizenberg, Vrygrond, which all go to Victoria (Wynberg)|i|Vrygrond Road Reserve;Remainder
+Paarde Vlei|HBH|inferred: surrounded by Helderberg suburbs (Silvertas, Helderzicht, Garden Village, Somerset West Country Club); no touching suburb goes elsewhere||
+Paarden Eiland|NSH|confirmed by the developer on the map||
+Paarl|PAA|district referral pathways||
+Paarl Farms|KBH|confirmed by the developer on the map||
+Pacaltsdorp|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Panorama|KBH|2024 drainage list (PDF)||
+Parel Vallei|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Parelvallei Kleinhoewes|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Parklands|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Parkwood|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Retreat, Ottery, Grassy Park, Lotus River); no touching suburb goes elsewhere||
+Parow|TBH|confirmed by the developer on the map||
+Parow East|TBH|confirmed by the developer on the map||
+Parow Golf Course|KBH|confirmed by the developer on the map||
+Parow Industria|TBH|confirmed by the developer on the map||
+Parow North|KBH|confirmed by the developer on the map||
+Parow Valley|TBH|2024 drainage list (PDF)||
+Paternoster|NSH|confirmed by the developer on the map||
+Peacock Close|VHW|estimate from the map, not confirmed: neighbouring areas (Pelikan Park) go there|e|
+Pearl Marina|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Pearl Rise|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Pearly Beach|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Peerless Park East|KBH|2024 drainage list (PDF)||
+Peerless Park North|KBH|2024 drainage list (PDF)||
+Peerless Park West|KBH|2024 drainage list (PDF)||
+Pelikan Bos|VHW|estimate from the map, not confirmed: neighbouring areas (Pelikan Park) go there|ie|
+Pelikan Heights|VHW|confirmed by the developer on the map||
+Pelikan Park|VHW|confirmed by the developer on the map||
+Pella|NSH|confirmed by the developer on the map||
+Penhill|ERH|2024 drainage list (PDF)||
+Penlyn Estate|GSH|inferred: surrounded by Groote Schuur suburbs (Mountview, Pinati, Belthorn Estate, Belgravia and 1 more); no touching suburb goes elsewhere||
+Petrosa Tank Farm|KBH|confirmed by the developer on the map||
+Phantsikocingo|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Philadelphia|KBH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District C) go there|e|
+Philippi|MPH|2024 drainage list (PDF); staff in the app said correct 1 time, flagged it wrong 0 times||
+Philippi Park|MPH|2024 drainage list (PDF); staff in the app said correct 1 time, flagged it wrong 0 times||
+Phillidelphia|KBH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District C) go there|ie|
+Phillipi 6810|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Phillipi Site|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Phillipi TRA|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Phoenix|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Phola Park - Gugulethu|HEC|estimate from the map, not confirmed: neighbouring areas (Guguletu) go there|ie|
+Phola Park - Mfuleni|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Phola Park - Philippi|MPH|inferred: lies within Philippi Park, Philippi, which all go to Mitchells Plain|i|Better Life
+Pholile|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Phumlani|VHW|inferred: lies within Eagle Park, which goes to Victoria (Wynberg)|i|
+Pieterson Road|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|
+Piketberg|PAA|district referral pathways||
+Pinati|GSH|inferred: surrounded by Groote Schuur suburbs (Mountview, Hanover Park, Lansdowne); no touching suburb goes elsewhere||
+Pine Grove Farm|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|
+Pine Road|GSH|inferred: lies within Woodstock, which goes to Groote Schuur|i|
+Pine Town|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Pinehurst|KBH|2024 drainage list (PDF)||
+Pinelands|GSH|2024 drainage list (PDF)||
+PJS Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|
+Plattekloof 1|KBH|2024 drainage list (PDF)||
+Plattekloof 2|KBH|2024 drainage list (PDF)||
+Plattekloof 3|KBH|2024 drainage list (PDF)||
+Plattekloof Glen|KBH|2024 drainage list (PDF)||
+Plettenberg Bay|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Plumstead|VHW|2024 drainage list (PDF)||
+Pniel|PAA|district referral pathways||
+Pook Se Bos|GSH|inferred: lies within Gatesville, which goes to Groote Schuur|i|
+Porterville|PAA|confirmed by the developer on the map||
+Portland|MPH|2024 drainage list (PDF)||
+Primrose Street|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|
+Prince Albert|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Prince Alfred Hamlet|CWD|district referral pathways (route not set yet)||
+Pringle Bay|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Protea Heights|KBH|2024 drainage list (PDF)||
+Protea Park - Gordon's Bay|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Protea Park - Wesfleur|WES|confirmed by the developer on the map||
+Protea Valley|KBH|2024 drainage list (PDF)||
+Protea Village|KBH|2024 drainage list (PDF)||
+Proteaville|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Q Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|QA Section;QQ Section 2
+QQ Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|
+Racing Park|NSH|inferred: surrounded by New Somerset suburbs (Dunoon, Killarney Gardens); no touching suburb goes elsewhere||
+Rasta Camp - Atlantis|WES|estimate from the map, not confirmed: neighbouring areas (Wesfleur) go there|ie|
+Rasta Camp - Ocean View|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area|i|
+Rasta Camp - Sir Lowrys Pass|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Ravensmead|TBH|confirmed by the developer on the map||
+Rawsonville|WOR|confirmed by the developer on the map||
+Red Hill|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area|i|Red Hill 1;Red Hill 2;Red Hill 3
+Retreat|VHW|2024 drainage list (PDF)||
+Richmond|KBH|estimate from the map, not confirmed: neighbouring areas (Glenlily, Richmond Estate) go there|e|
+Richmond Estate|KBH|2024 drainage list (PDF)||
+Richmond Park|KBH|inferred: on the Karl Bremer side of N7; touching suburbs on its side go to Karl Bremer (Petrosa Tank Farm, Richwood, Burgundy Estate, Bothasig); across the line is New Somerset||
+Richwood|KBH|2024 drainage list (PDF)||
+Ridgeworth|KBH|2024 drainage list (PDF)||
+Riebeek Kasteel|PAA|district referral pathways||
+Riebeek West|PAA|district referral pathways||
+Riemvasmaak|VHW|inferred: lies within Eagle Park, which goes to Victoria (Wynberg)|i|Riemvasmaak 1;Riemvasmaak 2
+Rietpoel|ERH|inferred: lies within Sunbird Park, which goes to Eerste River|i|
+Rivergate|NSH|confirmed by the developer on the map||
+Riversdale|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Riverside|HBH|inferred: surrounded by Helderberg suburbs (Chris Hani Park, Macassar); no touching suburb goes elsewhere||
+Riverton Elsies River|TBH|2024 drainage list (PDF)||
+Riviersonderend|CAL|confirmed by the developer on the map||
+Robben Island|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Robertson|WOR|confirmed by the developer on the map||
+Robinvale|WES|confirmed by the developer on the map||
+Rocklands|MPH|2024 drainage list (PDF)||
+Rome Glen|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Rondeberg|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|
+Rondebosch|GSH|2024 drainage list (PDF); staff in the app said correct 1 time, flagged it wrong 0 times||
+Rondebosch East|GSH|2024 drainage list (PDF)||
+Rondevlei|VHW|inferred: lies within Lavender Hill, False Bay Coastal Park, which all go to Victoria (Wynberg)|i|
+Rondevlei Park|MPH|inferred: surrounded by Mitchells Plain suburbs (Westgate, Highlands Village, Colorado Park, Weltevreden Valley and 1 more); no touching suburb goes elsewhere||
+Rooidakkies|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|
+Roosendal|ERH|2024 drainage list (PDF)||
+Rosebank|GSH|2024 drainage list (PDF)||
+Rosedale - Durbanville|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Rosedale - Klein Vlei|ERH|2024 drainage list (PDF)||
+Rosendal|KBH|inferred: surrounded by Karl Bremer suburbs (Eversdal, Ridgeworth); no touching suburb goes elsewhere||
+Rosenpark|KBH|inferred: surrounded by Karl Bremer suburbs (O'Kennedyville, Kenridge, Rosendal); no touching suburb goes elsewhere||
+Rotterdam|ERH|2024 drainage list (PDF)||
+Roundhay|HBH|inferred: surrounded by Helderberg suburbs (Martinville, Somerset West); no touching suburb goes elsewhere||
+Rouxville|KBH|2024 drainage list (PDF)||
+Royal Ascot|NSH|inferred: surrounded by New Somerset suburbs (Milnerton Ridge, Marconi Beam, Milnerton); no touching suburb goes elsewhere||
+Royal Plakkers Kamp|NSH|inferred: lies within Maitland, which goes to New Somerset|i|
+RR Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|
+Rugby|NSH|2024 drainage list (PDF)||
+Ruitershoogte|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Rustdal|ERH|2024 drainage list (PDF)||
+Ruwari|KBH|inferred: surrounded by Karl Bremer suburbs (Protea Village, Everite Industria, Protea Heights, Brackenfell South); no touching suburb goes elsewhere||
+Ruyterwacht|TBH|confirmed by the developer on the map||
+Rylands|GSH|confirmed by the developer on the map||
+S Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|S Section 1;S Section 2;Donkey Sqaure;YA Section
+S Section 7410|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Sabata Dalindyebo Square|KDH|confirmed by the developer on the map||
+Sack's Circle Industria|TBH|confirmed by the developer on the map||
+Sagoloda Street|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Sagoloda Street 1
+Sagoloda Street 2|MPH|the informal settlements also called this (Sagwityi Street, Sagoloda Street) all go there|i|
+Sagwityi Street|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Sakhile|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+Saldanha|NSH|confirmed by the developer on the map||
+Salt River|GSH|2024 drainage list (PDF)||
+Sam Nnjokozela Avenue|KBH|inferred: lies within Bloekombos, which goes to Karl Bremer|i|
+Samora Machel|MPH|2024 drainage list (PDF)|i|
+Samora Machel Infills|MPH|the informal settlements also called this (Letsatsi Mosala Street, Oliver Tambo Avenue, Iraq - Philippi, New Look - Philippi, Phillipi 6810 and 11 more) all go there|i|
+Sand Industria|HEC|confirmed by the developer on the map||
+Sandbaai|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Sanddrift|NSH|inferred: surrounded by New Somerset suburbs (Marconi Beam, Century City); no touching suburb goes elsewhere||
+Sandown|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Sandvlei|HBH|confirmed by the developer on the map||
+Sanlamhof|KBH|confirmed by the developer on the map||
+Sarepta|KBH|2024 drainage list (PDF)||
+Saron|PAA|district referral pathways||
+Savage And Lovemore|HBH|confirmed by the developer: map review, the whole Helderberg area|i|Mission Road;Group Five
+Saxenburg Park 1|ERH|confirmed by the developer on the map||
+Saxenburg Park 2|ERH|inferred: surrounded by Eerste River suburbs (Rustdal, Blackheath Industria); no touching suburb goes elsewhere||
+Saxon Industrial|TBH|inferred: surrounded by Tygerberg suburbs (Glenhaven, Bellville South); no touching suburb goes elsewhere||
+Saxon World|NSH|estimate from the map, not confirmed: neighbouring areas (Saxonwood) go there|ie|
+Saxonsea|WES|confirmed by the developer on the map||
+Saxonwood|NSH|confirmed by the developer on the map||
+SB Section|KDH|estimate from the map, not confirmed: neighbouring areas (Nonqubela) go there|ie|P Section
+SBDC TRA|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Scarborough|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area||
+Schonenberg|HBH|confirmed by the developer: map review, the whole Helderberg area||
+School Site|MPH|the informal settlements also called this (Amy Biehl, Block 8) all go there|i|
+Schoongezicht|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Scottsdene|KBH|2024 drainage list (PDF)||
+Scottsville|KBH|inferred: surrounded by Karl Bremer suburbs (Peerless Park West, Okavango Park, Brackenfell Industria); no touching suburb goes elsewhere||
+Sea Breeze Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Sea Point|NSH|2024 drainage list (PDF)||
+Seawinds|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Lavender Hill, Steenberg, Muizenberg); no touching suburb goes elsewhere||
+Section 32|KDH|estimate from the map, not confirmed: neighbouring areas (Umrhabulo Triangle) go there|ie|
+Sedgefield|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Selborne|KBH|inferred: surrounded by Karl Bremer suburbs (Blomvlei, Loevenstein, Hoheizen); no touching suburb goes elsewhere||
+Sercor Park|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Sewende Laan - Valhalla Park|TBH|inferred: lies within Valhalla Park, which goes to Tygerberg|i|
+Sheffield Road|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Siyahlala - Sheffield Road: Philippi
+Sherwood|WES|confirmed by the developer on the map||
+Shirley Park|KBH|confirmed by the developer on the map||
+Shukushuma - Mfuleni|KDH|the informal settlements also called this (Shukushuma - Mfuleni 2, Shukushuma - Mfuleni 1) all go there|i|
+Shukushuma - Mfuleni 1|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Shukushuma - Mfuleni 2|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Signal Hill / Lions Head|NSH|confirmed by the developer on the map||
+Sihlanu Avenue|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Sikonanathi|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+Silveroaks|KBH|2024 drainage list (PDF)||
+Silversands|ERH|2024 drainage list (PDF)||
+Silverstroom Road|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|Kleinhoewe
+Silvertas|HBH|inferred: surrounded by Helderberg suburbs (Garden Village, Somerset West); no touching suburb goes elsewhere||
+Silvertown|KDH|2024 drainage list (PDF)||SST
+Silvertown - Khayelitsha|KDH|2024 drainage list (PDF)||
+Silwerboomkloof|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Simanga Street|KBH|inferred: lies within Bloekombos, which goes to Karl Bremer|i|
+Simon's Town|VHW|2024 drainage list (PDF)||
+Singolamthi Street|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Sinithemba|NSH|inferred: lies within Dunoon, which goes to New Somerset|i|
+Siphika Street|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|
+Siqalo|MPH|inferred: lies within Weltevreden Valley, which goes to Mitchells Plain|i|
+Sir Lowry's Pass|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Sir Lowry's Pass Village Centre|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Sir Lowrys Pass Smalls|HBH|the informal settlements also called this (Sun City, Bloekombos Somerset West, Savage And Lovemore) all go there|i|
+Sirrocco's|TBH|estimate from the map, not confirmed: neighbouring areas (Vogelvlei, Labiance) go there|e|
+Sitari Country Estate|HBH|confirmed by the developer on the map||
+Site C Infills|KDH|the informal settlements also called this (AT Section, BBT Section, Mlambo Street, Chris Hani, Siyakha and 7 more) go there: estimate, not confirmed|ie|
+Sithathu Avenue|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Sixth Avenue - Kensington|NSH|inferred: lies within Maitland, Kensington, which all go to New Somerset|i|Texas Ranger
+Siyahlala - Du Noon|NSH|estimate from the map, not confirmed: neighbouring areas (Dunoon) go there|ie|
+Siyahlala - Joe Slovo: Milnerton|NSH|confirmed by the developer: map review, the whole New Somerset area|i|
+Siyahlala - Langa|NSH|inferred: lies within Langa, which goes to New Somerset|i|
+Siyakha|KDH|estimate from the map, not confirmed: neighbouring areas (Mxolisi Phetani) go there|ie|
+Skandaalkamp|NSH|estimate from the map, not confirmed: neighbouring areas (Cape Farms - District B) go there|ie|Tafelozono
+Small SBDC|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Smallville TRA|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Smartie Town|HBH|inferred: surrounded by Helderberg suburbs (Macassar Village, Macassar); no touching suburb goes elsewhere||
+Smitswinkelbaai|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area||
+Sollys Town|HBH|confirmed by the developer: map review, the whole Helderberg area|i|Sollys Town 1;Sollys Town 2
+Somerset Forest|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Somerset Ridge|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Somerset West|HBH|2024 drainage list (PDF)||
+Somerset West Business Park|HBH|2024 drainage list (PDF)||
+Somerset West Country Club|HBH|2024 drainage list (PDF)||
+Somerset West Nature Reserve|HBH|2024 drainage list (PDF)||
+Somerset West Station|HBH|inferred: lies within Somerset West Country Club, Carey Park, which all go to Helderberg|i|
+Soneike I|KBH|2024 drainage list (PDF)||
+Soneike Ii|KBH|2024 drainage list (PDF)||
+Sonkring|KBH|2024 drainage list (PDF)||
+Sonnekuil|KBH|inferred: surrounded by Karl Bremer suburbs (Brackenfell Common, Soneike Ii, Mabille Park, Soneike I and 1 more); no touching suburb goes elsewhere||
+Sonnendal|KBH|2024 drainage list (PDF)||
+Sonstraal|KBH|inferred: surrounded by Karl Bremer suburbs (Vygeboom, Eversdal, Valmary Park, Eversdal Heights and 2 more); no touching suburb goes elsewhere||
+Sonstraal Heights|KBH|2024 drainage list (PDF)||
+Sonwabile Road 1|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 1
+Sonwabile Road 2|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 9
+Sonwabile Road 3|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 11
+Sophakama - Driftsands|KDH|estimate from the map, not confirmed: neighbouring areas (Driftsands) go there|ie|
+Southfield|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Parkwood, Elfindale, Retreat, Ottery and 2 more); no touching suburb goes elsewhere||
+Southfork|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Spanish Farm|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Spoorkamp|NSH|confirmed by the developer: map review, the whole New Somerset area|i|
+Springbokpark|KBH|2024 drainage list (PDF)||
+Springfield|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Springfield Road|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+St Dumas|KBH|2024 drainage list (PDF)||
+St Helena Bay|NSH|confirmed by the developer on the map||
+St James|VHW|confirmed by the developer: map review, the whole Victoria (Wynberg) area||
+St Michaels|KBH|inferred: surrounded by Karl Bremer suburbs (Morgenster, Arauna, Brackenfell Central, Morgenster Heights); no touching suburb goes elsewhere||
+Stanford|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Steenberg|VHW|2024 drainage list (PDF)||
+Steenbras View|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Stellenberg|KBH|2024 drainage list (PDF)||
+Stellenbosch|PAA|district referral pathways||
+Stellenbosch Farms|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Stellenbosch Farms (Blue Downs)|ERH|confirmed by the developer on the map||
+Stellenbosch Farms (Kuilsrivier)|KBH|confirmed by the developer on the map||
+Stellenbosch Univ|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Stellendale|KBH|inferred: on the Karl Bremer side of M12 Stellenbosch Arterial; touching suburbs on its side go to Karl Bremer (Kuils River Common, Highbury, Highbury Park); across the line is Eerste River||
+Stellenridge|KBH|2024 drainage list (PDF)||
+Stellenryk|KBH|inferred: surrounded by Karl Bremer suburbs (Hoogstede, Stellenberg, Vredekloof); no touching suburb goes elsewhere||
+Stikland|KBH|confirmed by the developer on the map||
+Stikland Hospitaal|KBH|inferred: surrounded by Karl Bremer suburbs (Oakglen, Chrismar, Blommendal); no touching suburb goes elsewhere||
+Stikland Industria|KBH|confirmed by the developer on the map||
+Stilbaai|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Still Bay|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Strand|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Strand Golf Club|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Strand Industria|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Strandfontein|VHW|2024 drainage list (PDF)||
+Strandfontein Pockets|VHW|inferred: lies within Strandfontein, which goes to Victoria (Wynberg)|i|7de Laan - Strandfontein;Heights Block 11;Oppermans Oord;Masincedane Camp;City Mission - Strandfontein
+Strandvale|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Strong Yard|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Struisbaai|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Stuart's Hill|HBH|inferred: surrounded by Helderberg suburbs (Bene Township, Jacques Hill, Audas Estate, Somerset West); no touching suburb goes elsewhere||
+Stulo Road 1/2|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 2;Stulo Road 1;Stulo Road 2
+Stulo Road 4/5|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 6;Stulo Road 4;Stulo Road 5
+Stulo Road 6|MPH|estimate from the map, not confirmed: neighbouring areas (Crossroads) go there|ie|Crossroads 7
+Summer Greens|NSH|2024 drainage list (PDF)||
+Summerville|KBH|inferred: surrounded by Karl Bremer suburbs (Eikendal, Wallacedene, Scottsdene, Belmont Park); no touching suburb goes elsewhere||
+Sun City|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Sun Valley|VHW|confirmed by the developer on the map||
+Sunbird Park|ERH|2024 drainage list (PDF)||
+Sunningdale|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Sunnydale|VHW|2024 drainage list (PDF)||
+Sunridge|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Sunset Beach|NSH|inferred: surrounded by New Somerset suburbs (Table View, Milnerton); no touching suburb goes elsewhere||
+Surrey Estate|HEC|2024 drainage list (PDF)||
+Suurbraak|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Sweet Home|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Fananze
+Sweet Lips TRA|TBH|inferred: lies within Ravensmead, which goes to Tygerberg|i|Florida Road
+Swellendam|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Swelleni Street|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|
+Sybrand Park|GSH|inferred: surrounded by Groote Schuur suburbs (Hazendal, Rondebosch, Athlone, Mowbray); no touching suburb goes elsewhere||
+Symphony Way|ERH|inferred: lies within Delft South, which goes to Eerste River|i|
+Symphony Way TRA|ERH|estimate from the map, not confirmed: neighbouring areas (Cape Town Airport) go there|ie|Blikkiesdorp
+T Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|TT Section;UT Section 1
+T Tokwana Street 1|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+T Tokwana Street 2|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Table Mountain|NSH|confirmed by the developer on the map||
+Table View|NSH|2024 drainage list (PDF)||
+Table View Tipsite|NSH|confirmed by the developer: map review, the whole New Somerset area|i|
+Tafelsig|MPH|2024 drainage list (PDF); staff in the app said correct 1 time, flagged it wrong 0 times||
+Tamboerskloof|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Tando Store|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Tembisa|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Temperance Town|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Terminus Street|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Texas|VHW|inferred: lies within Hout Bay, which goes to Victoria (Wynberg)|i|
+Thabo Mbeki|ERH+MPH|the informal settlements also called this (Thabo Mbeki West, Thabo Mbeki East) go to different hospitals|ie|
+Thabo Mbeki - Langa|NSH|inferred: lies within Langa, which goes to New Somerset|i|Thabo Mbeki - Zone 1: Langa
+Thabo Mbeki East|MPH|estimate from the map, not confirmed: neighbouring areas (Philippi) go there|ie|
+Thabo Mbeki West|ERH|estimate from the map, not confirmed: nearby areas go there|ie|
+Thambo Square|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+The Conifers|ERH|inferred: surrounded by Eerste River suburbs (Malibu Village, Tuscany Glen, Austinville, Fountain Village and 2 more); no touching suburb goes elsewhere||
+The Crest|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+The Hague|ERH|2024 drainage list (PDF)||
+The Link|HBH|confirmed by the developer: map review, the whole Helderberg area||
+The Range|TBH|2024 drainage list (PDF)||
+The Stables|NSH|estimate from the map, not confirmed: neighbouring areas (Dunoon, Cape Farms - District B) go there|e|
+Thembalethu|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Thembokwezi|KDH|confirmed by the developer on the map||
+Thornton|NSH|2024 drainage list (PDF)||
+Three Anchor Bay|NSH|inferred: surrounded by New Somerset suburbs (Green Point, Sea Point); no touching suburb goes elsewhere||
+Tijgerhof|NSH|inferred: surrounded by New Somerset suburbs (Rugby, Sanddrift, Marconi Beam, Century City and 2 more); no touching suburb goes elsewhere||
+Tokai|VHW|2024 drainage list (PDF)||
+Touws River|WOR|confirmed by the developer on the map||
+Townsend Estate|KBH|inferred: on the Karl Bremer side of M7 Jakes Gerwel Drive; touching suburbs on its side go to Karl Bremer (Goodwood Ext 1, Goodwood Estate, Tygerdal); across the line is New Somerset||
+TR Section|KDH|estimate from the map, not confirmed: neighbouring areas (Bongani) go there|ie|Bongani TR Section;Noqubela TR Section
+Transnet Marshalling Yard|TBH|confirmed by the developer on the map||
+Tre Donne|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Triangle Farm|TBH|confirmed by the developer on the map||
+Tsamana Street|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Tsepe Tsepe|KDH|estimate from the map, not confirmed: neighbouring areas (Khaya) go there|ie|
+Tshwane|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Tsunami Tra|ERH|inferred: lies within Delft South, Delft 9, which all go to Eerste River|i|
+Tulbagh|PAA|confirmed by the developer on the map||
+Turtle Creek|KBH|inferred: surrounded by Karl Bremer suburbs (Zevenwacht Mall, Kuils River Sports Grounds, Vredelust Kuils River, Hunters Creek); no touching suburb goes elsewhere||
+Tuscany Glen|ERH|2024 drainage list (PDF)||
+Twin Palms|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Tygerberg Hospital|TBH|confirmed by the developer on the map||
+Tygerdal|KBH|2024 drainage list (PDF); staff in the app said correct 1 time, flagged it wrong 0 times||
+Tygervalley|KBH|inferred: surrounded by Karl Bremer suburbs (Kenridge, Oakdale, Loevenstein, Bo Oakdale and 1 more); no touching suburb goes elsewhere||
+Tygervalley Waterfront|KBH|inferred: surrounded by Karl Bremer suburbs (Door De Kraal, Kenridge, Welgemoed, Tygervalley); no touching suburb goes elsewhere||
+Uitkyk|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Uitkykbos|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|Stukkende Plaas
+Uitsig|TBH|confirmed by the developer on the map||
+Uitzicht|KBH|inferred: surrounded by Karl Bremer suburbs (Avalon Estate, Pinehurst, Kraaifontein, Goedemoed); no touching suburb goes elsewhere||
+Umbashe Street 1|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Umbashe Street 2|KDH|inferred: lies within Mfuleni, which goes to Khayelitsha|i|
+Umrhabulo Triangle|KDH|confirmed by the developer on the map||
+Uniondale|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+UT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|YB Section
+Uwc|TBH|confirmed by the developer on the map||
+V Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Valangentabo Street|KDH|estimate from the map, not confirmed: neighbouring areas (Driftsands) go there|ie|
+Valhalla Park|TBH|2024 drainage list (PDF)||
+Valmary Park|KBH|inferred: surrounded by Karl Bremer suburbs (Vygeboom, Durbanville); no touching suburb goes elsewhere||
+Van Der Meulen Street|NSH|confirmed by the developer: map review, the whole New Somerset area|i|
+Van Der Stel|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Van Riebeeckshof|KBH|inferred: surrounded by Karl Bremer suburbs (Door De Kraal, Door De Kraal Farm, Protea Valley, Welgedacht); no touching suburb goes elsewhere||
+Vanguard|HEC|confirmed by the developer on the map||
+Vanrhynsdorp|PAA|confirmed by the developer on the map||
+Vasco Estate|KBH|2024 drainage list (PDF)||
+VE Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Velddrif|NSH|confirmed by the developer on the map||
+Vergesig|KBH|inferred: surrounded by Karl Bremer suburbs (Durbanville Hills, Durbanville); no touching suburb goes elsewhere||
+Victoria Mxenge|KDH|confirmed by the developer on the map||
+Victoria Mxenge Infills|KDH|the informal settlements also called this (Ciko Avenue, V Section, Citabatwe Crescent, Y Section, Victoria Mxenge U and 3 more) go there: estimate, not confirmed|ie|
+Victoria Mxenge U|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|UTR Section;Makhanya Crescent
+Victoria Park|HBH|inferred: surrounded by Helderberg suburbs (Paarde Vlei, Helderzicht, Somerset West); no touching suburb goes elsewhere||
+Vierlanden|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Viking Village|KBH|inferred: surrounded by Karl Bremer suburbs (Peerless Park North, Windsor Park Estate, Kraaifontein); no touching suburb goes elsewhere||
+Village Heights|VHW|inferred: lies within Seawinds, Lavender Hill, False Bay Coastal Park, which all go to Victoria (Wynberg)|i|Hillview 2
+Villiersdorp|CAL|confirmed by the developer on the map||
+Vlakteplaas|HBH|confirmed by the developer: map review, the whole Helderberg area|i|
+Voelvlei|KBH|2024 drainage list (PDF)||
+Vogelvlei|TBH|confirmed by the developer on the map||
+Voorbrug|ERH|2024 drainage list (PDF)||
+Vredehoek|NSH|2024 drainage list (PDF)||
+Vredekloof|KBH|inferred: surrounded by Karl Bremer suburbs (Vredekloof East, Edenpark, Hoogstede, Kleinbron and 2 more); no touching suburb goes elsewhere||
+Vredekloof East|KBH|inferred: surrounded by Karl Bremer suburbs (Okavango Park, Edenpark, Hoogstede, Cape Gate and 1 more); no touching suburb goes elsewhere||
+Vredekloof Heights|KBH|inferred: surrounded by Karl Bremer suburbs (Vredekloof East, Kleinbron, Vredekloof); no touching suburb goes elsewhere||
+Vredelust Bellville|KBH|confirmed by the developer on the map||
+Vredelust Kuils River|KBH|inferred: surrounded by Karl Bremer suburbs (Zevenwacht Mall, Kuils River Sports Grounds); no touching suburb goes elsewhere||
+Vredenberg - Bellville|KBH|2024 drainage list (PDF)||
+Vredenberg - Somerset West|KBH|2024 drainage list (PDF)||
+Vredenburg|NSH|confirmed by the developer on the map||
+Vredendal|PAA|district referral pathways||
+Vredenzicht|KBH|estimate from the map, not confirmed: neighbouring areas (Vredenberg - Somerset West) go there|e|
+Vrygrond|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (False Bay Coastal Park, Muizenberg); no touching suburb goes elsewhere||
+VT Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Vuyisile Mini Street|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Vygeboom|KBH|inferred: surrounded by Karl Bremer suburbs (Eversdal, Eversdal Heights, Durbanville Hills, Durbanville); no touching suburb goes elsewhere||
+Vygieskraal|GSH|inferred: lies within Belgravia, which goes to Groote Schuur|i|
+Wag 'n Biejie|HBH|the informal settlements also called this (Wag 'n Biejie 1/2, Wag 'n Biejie 3/4) all go there|i|
+Wag 'n Biejie 1/2|HBH|confirmed by the developer: map review, the whole Helderberg area|i|Powerline;Wag 'n Biejie 1;Wag 'n Biejie 2
+Wag 'n Biejie 3/4|HBH|confirmed by the developer: map review, the whole Helderberg area|i|Ethimeni;Wag 'n Biejie 3;Wag 'n Biejie 4
+Wairoa|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Wallacedene|KBH|2024 drainage list (PDF)||
+Wallacedene 2|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|
+Wallacedene Infills|KBH|the informal settlements also called this (Miles Street, Swelleni Street, William & Dorris Street, Wallacedene 2, Pieterson Road and 1 more) all go there|i|
+Wallacedene TRA|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|
+Wash House Quarry|NSH|confirmed by the developer: map review, the whole New Somerset area|i|Die Kraal
+Waterfront|HEC|inferred: lies within Guguletu, which goes to Heideveld EC|i|
+Waterkloof, De Bron Ext 44|KBH|inferred: surrounded by Karl Bremer suburbs (Door De Kraal, Door De Kraal Farm); no touching suburb goes elsewhere||
+WB Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Wedderwill Estate|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Welcome|HEC|confirmed by the developer on the map||
+Welgedacht|KBH|2024 drainage list (PDF)||
+Welgelegen|KBH|confirmed by the developer on the map||
+Welgemoed|KBH|2024 drainage list (PDF)||
+Welgevonden|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Wellington|PAA|district referral pathways||
+Wellway Park|KBH|inferred: surrounded by Karl Bremer suburbs (Wellway Park East, Durbanville); no touching suburb goes elsewhere||
+Wellway Park East|KBH|inferred: surrounded by Karl Bremer suburbs (Morningstar, Goedemoed, Durbanville); no touching suburb goes elsewhere||
+Welmoed Cemetery|ERH|inferred: surrounded by Eerste River suburbs (Rosedale - Klein Vlei, Jacobsdal Smallholdings, Penhill, Kleinvlei Town); no touching suburb goes elsewhere||
+Weltevreden Road|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Weltevreden Valley|MPH|2024 drainage list (PDF)||
+Wembley Park|ERH|2024 drainage list (PDF)||
+Wesbank|ERH|2024 drainage list (PDF)||
+Wesfleur|WES|confirmed by the developer on the map||
+West Beach|NSH|2024 drainage list (PDF)||
+West Riding|NSH|confirmed by the developer: map review, the whole New Somerset area||
+Westerdale|KBH|confirmed by the developer: map review, the whole Karl Bremer area||
+Westgate|MPH|2024 drainage list (PDF)||
+Westlake|VHW|2024 drainage list (PDF)||
+Westridge - Mitchells Plain|MPH|2024 drainage list (PDF)||
+Westridge - Somerset West|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Wetton|VHW|confirmed by the developer on the map||
+Wilderness|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Wildwood|MPH|inferred: surrounded by Mitchells Plain suburbs (Hyde Park, Highlands Village, Rondevlei Park, Colorado Park and 1 more); no touching suburb goes elsewhere||
+William & Dorris Street|KBH|inferred: lies within Wallacedene, which goes to Karl Bremer|i|
+Wimbledon Estate|ERH|2024 drainage list (PDF)||
+Windermere|NSH|2024 drainage list (PDF)||
+Windsor Estate|KBH|inferred: surrounded by Karl Bremer suburbs (Peerless Park North, Peerless Park East, Peerless Park West, Scottsville and 5 more); no touching suburb goes elsewhere||
+Windsor Park Estate|KBH|2024 drainage list (PDF)||
+Wingfield|NSH|inferred: on the New Somerset side of M7 Jakes Gerwel Drive; touching suburbs on its side go to New Somerset (Windermere, Maitland); across the line is Karl Bremer||
+Wingfield Camp|NSH|inferred: lies within Wingfield, which goes to New Somerset|i|
+Winslow|HBH|confirmed by the developer: map review, the whole Helderberg area||
+Witsand|NSH|confirmed by the developer on the map||
+Wolfgat Nature Reserve|MPH|confirmed by the developer on the map||
+Wolseley|PAA|confirmed by the developer on the map||
+Wolwerivier|NSH|confirmed by the developer: map review, the whole New Somerset area|i|
+Wolwerivier Pockets|NSH|the informal settlements also called this (Blouberg Sands, Rooidakkies, Skandaalkamp, Spoorkamp, Table View Tipsite and 1 more) go there: estimate, not confirmed|ie|
+Woodlands|MPH|2024 drainage list (PDF)||
+Woodstock|GSH|2024 drainage list (PDF)||
+Worcester|WOR|district referral pathways||
+World's View - Caledon Farms|HBH|confirmed by the developer: map review, the whole Helderberg area||
+World's View - Somerset West|HBH|inferred: surrounded by Helderberg suburbs (Golden Hill Ext 1, Somerset West Nature Reserve); no touching suburb goes elsewhere||
+Wp Park|TBH|confirmed by the developer on the map||
+Wp Showgrounds|TBH|confirmed by the developer on the map||
+Wynberg|VHW|2024 drainage list (PDF)||
+Wynberg Nu|VHW|2024 drainage list (PDF)||
+Wynland Industrial Park|KBH|inferred: surrounded by Karl Bremer suburbs (Kraaifontein East, Bloekombos, Joostenbergvlakte Smallholdings, Kraaifontein Industria and 1 more); no touching suburb goes elsewhere||
+X Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|
+Y Section|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|YAB Section 2
+YAB|KDH|estimate from the map, not confirmed: neighbouring areas (Victoria Mxenge) go there|ie|YAB Section 1;Yab Section 3;YAB Section
+Ysterplaat|NSH|2024 drainage list (PDF)||
+Yzerfontein|PAA|district referral pathways||
+Z Memani Road|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Zeekoeivlei|VHW|inferred: surrounded by Victoria (Wynberg) suburbs (Grassy Park, Lotus River); no touching suburb goes elsewhere||
+Zevendal|KBH|2024 drainage list (PDF)||
+Zevenwacht Country Estate|KBH|2024 drainage list (PDF)||
+Zevenwacht Farm Village|KBH|2024 drainage list (PDF)||
+Zevenwacht Mall|KBH|2024 drainage list (PDF)||
+Zevenwacht Retirement Village|KBH|2024 drainage list (PDF)||
+Zevenzicht|KBH|inferred: surrounded by Karl Bremer suburbs (Klein Zevenwacht, Zevenwacht Farm Village, Eikenbosch Kuils River, Zevendal); no touching suburb goes elsewhere||
+Zille Rain|VHW|inferred: lies within Parkwood, which goes to Victoria (Wynberg)|i|Zille Rain Heights
+Zola|MPH|inferred: lies within Philippi, which goes to Mitchells Plain|i|
+Zola Section|KDH|inferred: lies within Mandela Park, which goes to Khayelitsha|i|
+Zonnebloem|NSH|confirmed by the developer on the map||
+Zoo Park|KBH|2024 drainage list (PDF)||
+Zwelethemba|WOR|confirmed by the developer on the map||
+Zwelihle|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Zwelitsha|KDH|estimate from the map, not confirmed: neighbouring areas (Enkanini) go there|ie|
+Zwelitsha Drive|HEC|inferred: lies within Nyanga, which goes to Heideveld EC|i|
+Zwelitsha Temporary|KDH|estimate from the map, not confirmed: neighbouring areas (Enkanini) go there|ie|
+Athlone Industria|HEC|2024 drainage list (PDF)||
+Atlantis|WES|2024 drainage list (PDF)||
+Avondale|KBH|2024 drainage list (PDF)||
+Barcelona|HEC|2024 drainage list (PDF)||
+Bardale Village|ERH|2024 drainage list (PDF)||
+Bay View|VHW|2024 drainage list (PDF)||
+Belhar|TBH|2024 drainage list (PDF)||
+Bellville (N of Voortrekker)|KBH|2024 drainage list (PDF)||
+Belthorne Estate|GSH|2024 drainage list (PDF)||
+Bernadino Heights|KBH|2024 drainage list (PDF)||
+Birgundy|KBH|2024 drainage list (PDF)||
+Blackheath|ERH|2024 drainage list (PDF)||
+Blouberg|NSH|2024 drainage list (PDF)||
+Blue Downs|ERH|2024 drainage list (PDF)||
+Blueberry Hill|ERH|2024 drainage list (PDF)||
+Bongweni|KDH|2024 drainage list (PDF)||
+Bonny Brook|KBH|2024 drainage list (PDF)||
+Brackenfell|KBH|2024 drainage list (PDF)||
+Browns Farm|MPH|2024 drainage list (PDF)||
+Camps Bay|NSH|2024 drainage list (PDF)||
+Capricorn|VHW|2024 drainage list (PDF)||
+Clarkes|TBH|2024 drainage list (PDF)||
+Connaught Estate|TBH|2024 drainage list (PDF)||
+Crossroads (New)|HEC|2024 drainage list (PDF)||
+Crossroads (Old & Lower)|MPH|2024 drainage list (PDF)||
+Delft|ERH|2024 drainage list (PDF)||
+Devon Park Village|ERH|2024 drainage list (PDF)||
+Diepwater|ERH|2024 drainage list (PDF)||
+Duinefontein|HEC|2024 drainage list (PDF)||
+Eerste River|ERH|2024 drainage list (PDF)||
+Epping|TBH|2024 drainage list (PDF)||
+Eureka|TBH|2024 drainage list (PDF)||
+Europe|HEC|2024 drainage list (PDF)||
+Forest Glade|ERH|2024 drainage list (PDF)||
+Freedom Park|KDH|2024 drainage list (PDF)||
+Goodwood|KBH|2024 drainage list (PDF)||
+Green Point (Khaya)|KDH|2024 drainage list (PDF)||
+Greenfield|ERH|2024 drainage list (PDF)||
+Greenhaven|HEC|2024 drainage list (PDF)||
+Greenpoint (City Bowl)|NSH|2024 drainage list (PDF)||
+Gugulethu|HEC|2024 drainage list (PDF)||
+Guguletu (All NY Zones)|HEC|2024 drainage list (PDF)||
+Hatton Estate|GSH|2024 drainage list (PDF)||
+Heather Park|ERH|2024 drainage list (PDF)||
+Heinz Park (Philippi)|MPH|2024 drainage list (PDF)||
+High Places|ERH|2024 drainage list (PDF)||
+Houghton|ERH|2024 drainage list (PDF)||
+Joostenberg Vlakte|KBH|2024 drainage list (PDF)||
+Khayelitsha Site B|KDH|2024 drainage list (PDF)||
+Khayelitsha Site C|KDH|2024 drainage list (PDF)||
+Khayelitsha West|KDH|2024 drainage list (PDF)||
+Kleinvlei|ERH|2024 drainage list (PDF)||
+Kuils River|KBH|2024 drainage list (PDF)||
+Kuils River (N of M12)|KBH|2024 drainage list (PDF)||
+Lingen|KBH|2024 drainage list (PDF)||
+Litha Park|KDH|2024 drainage list (PDF)||
+Lotus River (in Gugulethu)|HEC|2024 drainage list (PDF)||
+Makhaya|KDH|2024 drainage list (PDF)||
+Makhaza|KDH|2024 drainage list (PDF)||
+Mandalay|MPH|2024 drainage list (PDF)||
+Mau Mau|HEC|2024 drainage list (PDF)||
+Melkbosstrand|NSH|2024 drainage list (PDF)||
+Mitchells Plain|MPH|2024 drainage list (PDF)||
+Mont Clair|MPH|2024 drainage list (PDF)||
+Montrose Park|MPH|2024 drainage list (PDF)||
+Morgenster (Brackenfell)|KBH|2024 drainage list (PDF)||
+Morgenster (Mitchells Plain)|MPH|2024 drainage list (PDF)||
+Morgenster Hoogte|KBH|2024 drainage list (PDF)||
+Ndabeni|GSH|2024 drainage list (PDF)||
+Never Neva|MPH|2024 drainage list (PDF)||
+New Crossroads (Nyanga)|HEC|2024 drainage list (PDF)||
+New Rest Squatter Camp|HEC|2024 drainage list (PDF)||
+Nobuhle|KDH|2024 drainage list (PDF)||
+Norwood|TBH|2024 drainage list (PDF)||
+NY (all zones)|HEC|2024 drainage list (PDF)||
+Nyanga East|HEC|2024 drainage list (PDF)||
+Paarden Island|NSH|2024 drainage list (PDF)||
+Palm Park|ERH|2024 drainage list (PDF)||
+Park Village|ERH|2024 drainage list (PDF)||
+Parow (N of Voortrekker)|KBH|2024 drainage list (PDF)||
+Parow (S of Voortrekker)|TBH|2024 drainage list (PDF)||
+Parowvallei|TBH|2024 drainage list (PDF)||
+Peerless Park|KBH|2024 drainage list (PDF)||
+Pelican Heights|VHW|2024 drainage list (PDF)||
+Pelican Park|VHW|2024 drainage list (PDF)||
+Phola Park|MPH|2024 drainage list (PDF)||
+Pinati Estate|GSH|2024 drainage list (PDF)||
+Plattekloof|KBH|2024 drainage list (PDF)||
+Primrose Park|HEC|2024 drainage list (PDF)||
+Riverton|TBH|2024 drainage list (PDF)||
+Rondevallei|ERH|2024 drainage list (PDF)||
+Rosedale|ERH|2024 drainage list (PDF)||
+Ruiterwacht|TBH|2024 drainage list (PDF)||
+Russel's Rest|ERH|2024 drainage list (PDF)||
+Rylands Estate|GSH|2024 drainage list (PDF)||
+Saalberau|TBH|2024 drainage list (PDF)||
+San Remo|VHW|2024 drainage list (PDF)||
+Sherwood Park|HEC|2024 drainage list (PDF)||
+Sillwood Heights|ERH|2024 drainage list (PDF)||
+Silver City|MPH|2024 drainage list (PDF)||
+Silvermine|VHW|2024 drainage list (PDF)||
+Silverstream|HEC|2024 drainage list (PDF)||
+Siyahlala|MPH|2024 drainage list (PDF)||
+Soneike|KBH|2024 drainage list (PDF)||
+Stellenrust|ERH|2024 drainage list (PDF)||
+Stratford Green|ERH|2024 drainage list (PDF)||
+Sunset Glen|ERH|2024 drainage list (PDF)||
+Sweet Home Farm|MPH|2024 drainage list (PDF)||
+Tambo Square|HEC|2024 drainage list (PDF)||
+Tambo Village|HEC|2024 drainage list (PDF)||
+Tembani|KDH|2024 drainage list (PDF)||
+The Leagues|MPH|2024 drainage list (PDF)||
+The Wines|ERH|2024 drainage list (PDF)||
+UWC Res|TBH|2024 drainage list (PDF)||
+Valhalla|TBH|2024 drainage list (PDF)||
+Vanguard Estate|HEC|2024 drainage list (PDF)||
+Vredenberg|KBH|2024 drainage list (PDF)||
+Wavecrest|VHW|2024 drainage list (PDF)||
+Welcome Estate|HEC|2024 drainage list (PDF)||
+Westridge|MPH|2024 drainage list (PDF)||
+Windsor Park|KBH|2024 drainage list (PDF)||
+Youngsfield|VHW|2024 drainage list (PDF)||
+Zeekoevlei|VHW|2024 drainage list (PDF)||
+Zevenwacht|KBH|2024 drainage list (PDF)||
+Zonnendal|KBH|2024 drainage list (PDF)||
+West Coast|NSH|estimate, not confirmed: rough rule: coast side of the N7|e|
+West Coast|PAA|estimate, not confirmed: rough rule: inland of the N7|e|
+Cape Winelands|CWD|district referral pathways (route not set yet)||
+Overberg|HER|confirmed by the developer: the whole Overberg district goes to Hermanus, then Worcester, then Tygerberg||
+Garden Route|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||
+Central Karoo|GEO|confirmed by the developer: everything east of and including Ladismith and Heidelberg goes to George||`;
 // Postal codes (street and PO box) of Cape Town suburbs, from Wikipedia's "List of Cape Town suburbs" (read 12 Oct 2026).
 // Suburb names are written as on the drainage list where they match one.
 const DRAIN_POST_DATA = `8005|Bakoven
@@ -1065,15 +2020,18 @@ let DRAIN_IDX = null, DRAIN_EXTRA = [];   // DRAIN_EXTRA: [{ name, path }] Caspe
 function drainSetExtra(list) { DRAIN_EXTRA = list; DRAIN_IDX = null; }
 function drainIndex() {
   if (DRAIN_IDX) return DRAIN_IDX;
-  const areas = DRAIN_DATA.split("\n").map(l => { const [area, code, district, note] = l.split("|");
-    return district ? { area, code: "", path: code, district, note: note || "", base: drainNorm(drainBase(area)) } : { area, code, path: DRAIN_PATH[code], base: drainNorm(drainBase(area)) }; })
+  // Area|CODE|source|flags|other names: CODE is the first stop (two joined by + when it can be either), flags e = estimate
+  // (not confirmed), i = informal settlement, b = border area
+  const areas = DRAIN_DATA.split("\n").flatMap(l => { const [area, codes, src, flags = "", other = ""] = l.split("|");
+    return codes.split("+").map(code => ({ area, code, path: DRAIN_PATH[code], src, est: flags.includes("e"), inf: flags.includes("i"), border: flags.includes("b"),
+      other: other ? other.split(";") : [], base: drainNorm(drainBase(area)) })); })
     // added later: {name, path} a referral pathway, or {name, border: [first-stop codes]} a border area that could
     // drain either way (the lookup then says so and asks to enquire)
     .concat(DRAIN_EXTRA.flatMap(x => (x.border || [""]).map(c => { const path = c ? DRAIN_PATH[c] : x.path;
-      return PATH_NAME[path] ? { area: x.name, code: c, path, district: x.border ? "Border area" : "Added by you", note: "", border: !!x.border, base: drainNorm(drainBase(x.name)) } : null; }))
+      return PATH_NAME[path] ? { area: x.name, code: c || path, path, src: x.border ? "border area marked by the developer" : "added by the developer", border: !!x.border, other: [], base: drainNorm(drainBase(x.name)) } : null; }))
       .filter(Boolean));
   const byKey = new Map(), keys = [];
-  areas.forEach(a => [a.base, a.area, ...(DRAIN_ALIAS[a.area] || [])].forEach(v => {
+  areas.forEach(a => [a.base, a.area, ...(DRAIN_ALIAS[a.area] || []), ...a.other].forEach(v => {
     const k = drainNorm(v).replace(/ /g, ""); if (!k) return;
     if (!byKey.has(k)) { byKey.set(k, []); keys.push(k); }
     if (!byKey.get(k).includes(a)) byKey.get(k).push(a);
@@ -1142,16 +2100,21 @@ function drainLookup(address) {
     if (!asks.length && new Set(cand.map(a => a.path)).size > 1) asks.unshift(`Postal code ${code} covers ${list}, which go to different hospitals. Ask the suburb.`);
   });
   const paths = [...new Set(areas.map(a => a.path))].map(path => ({ path, areas: areas.filter(a => a.path === path) }));
-  areas.forEach(a => { if (a.note) asks.push(`${a.area}: ${a.note}. Check before referring.`); else if (a.district && !pathSet(a.path)) asks.push(`${a.area} (${a.district}): no referral path set up yet. Check before referring.`); });
+  areas.forEach(a => { if (!pathSet(a.path)) asks.push(`${a.area}: no referral path set up yet (${PATH_NAME[a.path]}). Check before referring.`); });
+  const est = [...new Set(areas.filter(a => a.est && pathSet(a.path)).map(a => a.area))];
+  if (est.length) asks.push(`Not confirmed yet: the route for ${est.length > 3 ? est.slice(0, 3).join(", ") + ` and ${est.length - 3} more` : est.join(", ")} is an estimate from the drainage map. If you know it with high certainty, please tell us below.`);
   if (streetOnly) asks.unshift(`Only a street name was recognised (${streetHits.map(h => h.said).join(", ")}). Streets can run through more than one area. Ask for the suburb or postal code.`);
   else if (use.filter(h => new Set(h.list.map(a => a.path)).size === 1).map(h => h.list[0].path).filter((v, i, a) => a.indexOf(v) === i).length > 1)
     asks.unshift("The address names areas with different pathways. Ask which suburb they live in.");
   // a longer name that goes elsewhere ("Athlone" vs "Athlone Industria", "Morgenster" vs "Morgenster Hoogte")
+  const longer = new Map();   // route → the longer names that go there
   areas.forEach(a => X.areas.forEach(b => {
     // (not when another place in the address already points away from it: "Morgenster, Mitchells Plain")
     if (drainRoute(b) !== drainRoute(a) && b.base.startsWith(a.base + " ") && !areas.some(x => x.area === b.area) && !(use.length > 1 && !settled.has(b.path))
-      && !drainNorm(a.said || "").startsWith(a.base + " ")) asks.push(`If they live in ${b.area}, the pathway is ${drainRoute(b)} instead. Check.`);
+      && !drainNorm(a.said || "").startsWith(a.base + " ")) (longer.get(drainRoute(b)) || longer.set(drainRoute(b), new Set()).get(drainRoute(b))).add(b.area);
   }));
+  longer.forEach((ns, r) => { ns = [...ns];
+    asks.push(`If they live in ${ns.length > 4 ? ns.slice(0, 4).join(", ") + ` or ${ns.length - 4} more` : ns.join(" or ")}, the pathway is ${r} instead. Check.`); });
   let guesses = [];
   if (!areas.length) {   // nothing recognised: wider spelling search, offered as "did you mean"
     const seen = new Map();
@@ -1196,8 +2159,7 @@ function drainSuggest(text) {
   }
   return { k: 0, list: [] };
 }
-drainSetExtra([{"name": "Allenby Estate", "path": "VHW"}, {"name": "Diep River", "path": "VHW"}, {"name": "Meadowridge", "path": "VHW"}, {"name": "Parklands", "path": "NSH"}, {"name": "Phoenix", "path": "NSH"},
-  {"name": "Monwabisi", "border": ["HBH", "KDH"]}]);
+drainSetExtra([{"name": "Allenby Estate", "path": "VHW"}]);
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1207,10 +2169,8 @@ const BORDER_ASK = "Please let us know the correct drainage: tap “Tell us the 
 const borderText = areas => { const names = [...new Set(areas.map(a => DRAIN_HOSP[a.code]))];
   return `${areas[0].area} is a border area between the ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} drainage areas. Its drainage is undefined, so the route can't be given with confidence.`; };
 // where an answer comes from, shown under it
-const srcOf = a => a.border ? "drainage map (border area)" : a.district === "Added by you" ? "confirmed by the developer"
-  : a.district ? (a.note ? "estimate, not confirmed" : "district referral pathways") : "reference drainage list (2024) and poster";
-const srcLine = R => { const s = [...new Set(R.paths.flatMap(P => P.areas.map(srcOf)))];
-  return `<span class="muted src">Source: ${esc(s.join("; "))}${s.includes("reference drainage list (2024) and poster") ? ` <button type="button" class="linkish" data-refs>View</button>` : ""}</span>`; };
+const srcLine = R => { const s = [...new Set(R.paths.flatMap(P => P.areas.map(a => a.src)))];
+  return `<span class="muted src">Source: ${esc(s.join("; "))}${s.some(x => /2024 drainage list/.test(x)) ? ` <button type="button" class="linkish" data-refs>View list</button>` : ""}</span>`; };
 const isBorder = R => R.paths.length > 0 && R.paths.every(P => P.areas.every(a => a.border));
 
 // while a name is still being typed ("Rond"), the areas the drop-down offers are the answer (3 letters or more)
@@ -1227,14 +2187,17 @@ function render() {
   const txt = $("q").value, el = $("out");
   if (!txt.trim()) { el.innerHTML = ""; renderFb(null); countSearch(null); return; }
   let R = drainLookup(txt);
-  if (!R.paths.length && !R.unlisted.length) R = drainPartial(txt) || R;   // part of a name typed ("Rond"): the suggestions give the answer
+  // part of a name typed ("Rond"): the suggestions give the answer. A real place that isn't a drainage area itself only takes
+  // the areas named after it as a whole word ("Masiphumelele" → Masiphumelele Infills, not "Strand" → Strandfontein)
+  if (!R.paths.length) { const P = drainPartial(txt), u = R.unlisted.map(n => drainNorm(n) + " ");
+    if (P && (!u.length || P.paths.every(Q => Q.areas.every(a => u.some(w => a.base.startsWith(w)))))) R = P; }
   renderFb(R); countSearch(R, txt);
   if (!R.paths.length && drainNorm(txt).replace(/[^a-z]/g, "").length < 3) { el.innerHTML = ""; renderFb(null); return; }   // 1-2 letters: just the drop-down
-  const hosp = a => a.border ? `border area: ${esc(DRAIN_HOSP[a.code])} (${a.code})` : a.district === "Added by you" ? "added to the list" : a.district ? `${esc(a.district)} district${a.note ? ` (${esc(a.note)})` : ""}` : `${esc(DRAIN_HOSP[a.code])} (${a.code})`;
+  const hosp = a => `${a.border ? "border area: " : ""}${esc(DRAIN_HOSP[a.code])}${pathSet(a.path) ? ` (${a.code})` : ""}${a.est ? " · <b>not confirmed</b>" : ""}`;
   // the first stop when it differs from the referral hospital: "Khayelitsha Hospital > Tygerberg Hospital"
   const hop = P => { const h = [...new Set(P.areas.map(a => drainFirst(a) || "direct"))]; return h.join("") === "direct" ? "" : h.join(" or "); };
   const route = P => `<div class="route">${hop(P) ? `<span class="hop">${esc(hop(P))}</span><span class="arr" aria-label="then">›</span>` : ""}<span class="big">${esc(PATH_NAME[P.path])}</span></div>`;
-  const areaLine = a => `<b>${esc(a.area)}</b> · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
+  const areaLine = a => `<b>${esc(a.area)}</b>${a.inf ? " (informal settlement)" : ""} · drainage: ${hosp(a)}${a.via ? ` · from postal code ${esc(a.via)}` : ""}`;
   const names = P => [...new Set(P.areas.map(a => a.area))].map(esc).join(", ");
   let h;
   if (isBorder(R)) h = `<div class="card answer ask"><h2>Referral pathway</h2><span class="big">Drainage not certain</span><span>${esc(borderText(R.paths.flatMap(P => P.areas)))}</span>`;
@@ -1308,7 +2271,9 @@ async function flush() {
   for (const d of list) { try { await post(d); } catch { left.push(d); } }
   setOutbox([...left, ...outbox()]); flushing = false;
 }
-const PATH_OPTS = Object.keys(PATH_NAME).filter(pathSet).map(c => [c, PATH_NAME[c]]).map(([c, n]) => `<option value="${c}: ${esc(n)}">${esc(n)}</option>`).join("");
+// every route by its first stop: "Karl Bremer Hospital › Tygerberg Hospital", "Caledon Hospital › Worcester Hospital (then Tygerberg)"
+const PATH_OPTS = Object.keys(DRAIN_HOSP).filter(c => pathSet(DRAIN_PATH[c])).map(c => [c, drainRoute({ code: c, path: DRAIN_PATH[c] })])
+  .map(([c, n]) => `<option value="${c}: ${esc(n)}">${esc(n)}</option>`).join("");
 document.querySelectorAll("select[name=path]").forEach(s => s.insertAdjacentHTML("beforeend", PATH_OPTS + `<option>Not sure</option>`));
 const fillNames = () => document.querySelectorAll("input.me").forEach(i => { if (!i.value) i.value = store("name"); });
 fillNames();
@@ -1344,7 +2309,7 @@ function renderFb(R) {
   }
   $("fb").innerHTML = !key ? "" : key === "?"
     ? `<div class="card"><div class="row"><span>Not on our list yet. Send this area to the developer so it can be added?</span><button type="button" class="primary" data-fb="unfound">Send to developer</button><button type="button" data-fb="add">I know the hospital</button></div></div>`
-    : `<div class="card"><div class="row"><span>Was this right?</span><button type="button" data-fb="correct">${ICON_OK}Yes, correct</button><button type="button" data-fb="wrong">${ICON_FLAG}No, flag it</button></div></div>`;
+    : `<div class="card"><div class="row"><span>${R.paths.some(P => P.areas.some(a => a.est)) ? "Not confirmed yet. Do you know this route for sure?" : "Was this right?"}</span><button type="button" data-fb="correct">${ICON_OK}Yes, correct</button><button type="button" data-fb="wrong">${ICON_FLAG}No, flag it</button></div></div>`;
 }
 const ICON_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
 const ICON_FLAG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4h11l-2 4 2 4H5"/></svg>`;
