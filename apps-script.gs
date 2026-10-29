@@ -116,31 +116,20 @@ function dailyReport() {
   const waiting = rows("New areas").filter(r => r[1] && !r[6]).length;
   const n = (r, i) => Number(r[i]) || 0, all = sum(S, 1), missed = sum(S, 2);
   const flagged = fb.filter(r => r[1] === "wrong");
+  const ok = fb.length - flagged.length, list = (rs, f) => rs.map(f).join(", ");
   const lines = [
-    "CapeRefer, " + Utilities.formatDate(now, TZ, "EEEE d MMMM yyyy"),
+    `Today: ${sum(S, 1, isToday)} searches${sum(S, 2, isToday) ? ` (${sum(S, 2, isToday)} not found)` : ""}, ${n(v, 1)} users (${n(v, 2)} new)`,
+    `Last 7 days: ${sum(S, 1, r => day(r[0]) >= weekAgo)} searches · this week ${sum(V, 3, r => day(r[0]) >= monday)} users`,
+    `All time: ${all} searches (${all ? Math.round(100 * (all - missed) / all) : 0}% found), ${sum(V, 2)} users`,
+    `Staff today: ${ok} correct, ${flagged.length} flagged, ${areas.length} areas, ${notes.length} notes`,
+    ...flagged.map(r => `• Flagged ${r[2]}: shown ${r[3]}, should be ${r[4] || "not sure"}${r[5] ? " (" + r[5] + ")" : ""}`),
+    ...(areas.length ? ["• Areas: " + list(areas, r => r[1] + (r[2] && r[2] !== "Not known" ? " → " + r[2] : ""))] : []),
+    ...notes.map(r => `• Note: ${r[1]}${r[3] ? " (" + r[3] + ")" : ""}`),
+    ...(waiting ? [`${waiting} new areas waiting for your decision`] : []),
     "",
-    "SEARCHES",
-    `Today: ${sum(S, 1, isToday)} (not found: ${sum(S, 2, isToday)})`,
-    `Last 7 days: ${sum(S, 1, r => day(r[0]) >= weekAgo)}`,
-    `All time: ${all}, found the area ${all ? Math.round(100 * (all - missed) / all) : 0}%`,
-    "",
-    "USERS (one per phone browser)",
-    `Today: ${n(v, 1)} (${n(v, 2)} new) · installed app ${n(v, 5)}, browser ${n(v, 6)} · iPhone ${n(v, 7)}, Android ${n(v, 8)}, other ${n(v, 9)}`,
-    `This week (from Monday): ${sum(V, 3, r => day(r[0]) >= monday)}`,
-    `All time: ${sum(V, 2)}`,
-    "",
-    "FROM STAFF TODAY",
-    `Confirmed correct: ${fb.length - flagged.length}${fb.length - flagged.length ? " (" + fb.filter(r => r[1] !== "wrong").map(r => r[2]).join(", ") + ")" : ""}`,
-    `Flagged wrong: ${flagged.length}`,
-    ...flagged.map(r => `  ${r[2]}: shown ${r[3]}, should be ${r[4] || "not sure"}${r[5] ? " (" + r[5] + ")" : ""}`),
-    `Areas sent in: ${areas.length}${areas.length ? " (" + areas.map(r => r[1] + (r[2] && r[2] !== "Not known" ? " → " + r[2] : "")).join(", ") + ")" : ""}`,
-    `Notes: ${notes.length}`,
-    ...notes.map(r => "  " + r[1] + (r[3] ? " (contact: " + r[3] + ")" : "")),
-    `New areas waiting for your decision: ${waiting}`,
-    "",
-    "Sheet: " + ss.getUrl(),
+    ss.getUrl(),
   ];
-  MailApp.sendEmail(REPORT_TO, `CapeRefer ${Utilities.formatDate(now, TZ, "d MMM")}: ${sum(S, 1, isToday)} searches, ${n(v, 1)} users`, lines.join("\n"));
+  MailApp.sendEmail(REPORT_TO, `CapeRefer ${Utilities.formatDate(now, TZ, "d MMM")}: ${sum(S, 1, isToday)} searches · ${n(v, 1)} users`, lines.join("\n"));
 }
 
 // run once from the editor: one report every evening between 8 and 9 pm, Cape Town time (and one now, to check)
